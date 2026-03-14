@@ -1,0 +1,8 @@
+{
+  "name": "ZEROS'",
+  "description": "ZEROS' - The ultimate gaming marketplace in Bangladesh. Buy game top-ups, gift cards, and digital keys with bKash and Nagad. Powered by Gemini AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@layer base {
+  .markdown-body {
+    @apply text-sm leading-relaxed;
+  }
+  .markdown-body p {
+    @apply mb-2 last:mb-0;
+  }
+  .markdown-body ul {
+    @apply list-disc pl-4 mb-2;
+  }
+  .markdown-body ol {
+    @apply list-decimal pl-4 mb-2;
+  }
+  .markdown-body strong {
+    @apply font-bold;
+  }
+  .markdown-body code {
+    @apply bg-gray-100 px-1 rounded font-mono text-xs;
+  }
+}
+
+/* Custom scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
