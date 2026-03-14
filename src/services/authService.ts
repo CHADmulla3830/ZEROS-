@@ -24,15 +24,20 @@ export const AuthService = {
           email: user.email || '',
           displayName: user.displayName || '',
           photoURL: user.photoURL || '',
-          role: 'user',
+          role: user.email === 'chadmulla7@gmail.com' ? 'admin' : 'user',
           createdAt: new Date().toISOString()
         };
         await setDoc(doc(db, 'users', user.uid), newUser);
         return newUser;
       }
       return userDoc.data() as UserProfile;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing in with Google", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        alert('This domain is not authorized in Firebase. Please add your Vercel domain to the "Authorized domains" list in the Firebase Console (Authentication > Settings).');
+      } else {
+        alert('Sign in failed: ' + (error.message || 'Unknown error'));
+      }
       return null;
     }
   },

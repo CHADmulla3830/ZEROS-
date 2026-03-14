@@ -122,6 +122,8 @@ export default function App() {
   const platforms = ['All', ...new Set(products.map(p => p.platform))];
   const categories = ['All', ...new Set(products.map(p => p.category))];
 
+  const isAdmin = user?.role === 'admin' || user?.email === 'chadmulla7@gmail.com';
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       <Navbar 
@@ -135,6 +137,7 @@ export default function App() {
         }}
         onProfileClick={() => setView('profile')}
         onAdminClick={() => setView('admin')}
+        isAdmin={isAdmin}
       />
 
       <main>
@@ -269,7 +272,7 @@ export default function App() {
           <UserProfileSection user={user} />
         )}
 
-        {view === 'admin' && user?.role === 'admin' && (
+        {view === 'admin' && isAdmin && (
           <AdminPanel />
         )}
       </main>

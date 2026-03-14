@@ -10,6 +10,7 @@ interface NavbarProps {
   onHomeClick: () => void;
   onProfileClick: () => void;
   onAdminClick: () => void;
+  isAdmin: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
@@ -18,7 +19,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onCartClick, 
   onHomeClick, 
   onProfileClick, 
-  onAdminClick
+  onAdminClick,
+  isAdmin
 }) => {
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
@@ -38,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="hidden md:flex items-center gap-8">
             <button onClick={onHomeClick} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Shop</button>
-            {user?.role === 'admin' && (
+            {isAdmin && (
               <button onClick={onAdminClick} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Admin</button>
             )}
             <button onClick={onProfileClick} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Profile</button>
