@@ -8,6 +8,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
+import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -35,6 +36,8 @@ export const AuthService = {
       console.error("Error signing in with Google", error);
       if (error.code === 'auth/unauthorized-domain') {
         alert('This domain is not authorized in Firebase. Please add your Vercel domain to the "Authorized domains" list in the Firebase Console (Authentication > Settings).');
+      } else if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, 'users');
       } else {
         alert('Sign in failed: ' + (error.message || 'Unknown error'));
       }
@@ -51,27 +54,37 @@ export const AuthService = {
   },
 
   async getUserProfile(uid: string): Promise<UserProfile | null> {
-    const docSnap = await getDoc(doc(db, 'users', uid));
-    return docSnap.exists() ? (docSnap.data() as UserProfile) : null;
+    try {
+      const docSnap = await getDoc(doc(db, 'users', uid));
+      return docSnap.exists() ? (docSnap.data() as UserProfile) : null;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+      return null;
+    }
   },
 
   async toggleWishlist(uid: string, productId: string): Promise<string[]> {
-    const userRef = doc(db, 'users', uid);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) return [];
-    
-    const userData = userDoc.data() as UserProfile;
-    const currentWishlist = userData.wishlist || [];
-    
-    let newWishlist: string[];
-    if (currentWishlist.includes(productId)) {
-      newWishlist = currentWishlist.filter(id => id !== productId);
-    } else {
-      newWishlist = [...currentWishlist, productId];
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) return [];
+      
+      const userData = userDoc.data() as UserProfile;
+      const currentWishlist = userData.wishlist || [];
+      
+      let newWishlist: string[];
+      if (currentWishlist.includes(productId)) {
+        newWishlist = currentWishlist.filter(id => id !== productId);
+      } else {
+        newWishlist = [...currentWishlist, productId];
+      }
+      
+      await setDoc(userRef, { ...userData, wishlist: newWishlist });
+      return newWishlist;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+      return [];
     }
-    
-    await setDoc(userRef, { ...userData, wishlist: newWishlist });
-    return newWishlist;
   }
 };

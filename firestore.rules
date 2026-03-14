@@ -2,6 +2,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required) - User's unique ID
+    //   - email: string (required) - User's email address
+    //   - displayName: string (optional) - User's display name
+    //   - photoURL: string (optional) - User's profile photo URL
+    //   - role: string (required, enum: ['user', 'admin']) - User's role
+    //   - wishlist: list (optional) - List of product IDs
+    //   - createdAt: string (required, ISO 8601) - Account creation date
+    //
+    // Collection: products
+    // Document ID: {productId} (Auto-generated)
+    // Fields:
+    //   - id: string (required) - Product ID
+    //   - name: string (required) - Product name
+    //   - description: string (required) - Product description
+    //   - price: number (required) - Product price in BDT
+    //   - category: string (required) - Product category
+    //   - genre: string (required) - Game genre
+    //   - platform: string (required) - Gaming platform
+    //   - publisher: string (required) - Game publisher
+    //   - releaseDate: string (required) - Release date
+    //   - popularity: number (required) - Popularity score
+    //   - imageUrl: string (required) - Product image URL
+    //   - stock: number (required) - Available stock
+    //   - featured: boolean (optional) - Whether the product is featured
+    //
+    // Collection: orders
+    // Document ID: {orderId} (Auto-generated)
+    // Fields:
+    //   - id: string (required) - Order ID
+    //   - userId: string (required) - ID of the user who placed the order
+    //   - items: list (required) - List of ordered items
+    //   - totalAmount: number (required) - Total order amount
+    //   - paymentMethod: string (required, enum: ['bkash', 'nagad']) - Payment method
+    //   - paymentNumber: string (required) - Sender's payment number
+    //   - transactionId: string (required) - Payment transaction ID
+    //   - status: string (required, enum: ['pending', 'completed', 'cancelled']) - Order status
+    //   - createdAt: string (required, ISO 8601) - Order creation date
+    //
+    // ===============================================================
+
     // Helper Functions
     function isAuthenticated() {
       return request.auth != null;
@@ -19,21 +66,26 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'email', 'role']) &&
-             data.uid is string &&
-             data.email is string &&
-             data.role in ['user', 'admin'];
+             data.uid is string && data.uid.size() < 128 &&
+             data.email is string && data.email.size() < 256 &&
+             data.role in ['user', 'admin'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 1000)) &&
+             (!('wishlist' in data) || data.wishlist is list);
     }
 
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'price', 'category', 'genre', 'platform', 'publisher', 'releaseDate', 'popularity']) &&
              data.name is string && data.name.size() < 200 &&
              data.price is number && data.price >= 0 &&
-             data.category is string &&
-             data.genre is string &&
-             data.platform is string &&
-             data.publisher is string &&
+             data.category is string && data.category.size() < 100 &&
+             data.genre is string && data.genre.size() < 100 &&
+             data.platform is string && data.platform.size() < 100 &&
+             data.publisher is string && data.publisher.size() < 100 &&
              data.releaseDate is string &&
-             data.popularity is number;
+             data.popularity is number &&
+             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 1000));
     }
 
     function isValidOrder(data) {
@@ -42,15 +94,17 @@ service cloud.firestore {
              data.totalAmount is number && data.totalAmount > 0 &&
              data.paymentMethod in ['bkash', 'nagad'] &&
              data.status in ['pending', 'completed', 'cancelled'] &&
-             data.transactionId is string &&
-             data.createdAt is string;
+             data.transactionId is string && data.transactionId.size() < 128 &&
+             data.paymentNumber is string && data.paymentNumber.size() < 20 &&
+             data.createdAt is string &&
+             data.items is list;
     }
 
     // Rules
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
-      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role);
+      allow update: if isAdmin() || (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role);
     }
 
     match /products/{productId} {

@@ -14,73 +14,120 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Order } from '../types';
+import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 
 export const ProductService = {
   async getAllProducts(): Promise<Product[]> {
-    const querySnapshot = await getDocs(collection(db, 'products'));
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    try {
+      const querySnapshot = await getDocs(collection(db, 'products'));
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, 'products');
+      return [];
+    }
   },
 
   async getProductById(id: string): Promise<Product | null> {
-    const docRef = doc(db, 'products', id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Product) : null;
+    try {
+      const docRef = doc(db, 'products', id);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Product) : null;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `products/${id}`);
+      return null;
+    }
   },
 
   async createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'statusLog'>): Promise<string> {
-    const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'orders'), {
-      ...orderData,
-      createdAt: now,
-      status: 'pending',
-      statusLog: [{ status: 'pending', timestamp: now }]
-    });
-    return docRef.id;
+    try {
+      const now = new Date().toISOString();
+      const docRef = await addDoc(collection(db, 'orders'), {
+        ...orderData,
+        createdAt: now,
+        status: 'pending',
+        statusLog: [{ status: 'pending', timestamp: now }]
+      });
+      return docRef.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'orders');
+      return '';
+    }
   },
 
   async getUserOrders(userId: string): Promise<Order[]> {
-    const q = query(
-      collection(db, 'orders'), 
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    try {
+      const q = query(
+        collection(db, 'orders'), 
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'orders');
+      return [];
+    }
   },
 
   async getAllOrders(): Promise<Order[]> {
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    try {
+      const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'orders');
+      return [];
+    }
   },
 
   async updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
-    const docRef = doc(db, 'orders', orderId);
-    const now = new Date().toISOString();
-    await updateDoc(docRef, { 
-      status,
-      statusLog: arrayUnion({ status, timestamp: now })
-    });
+    try {
+      const docRef = doc(db, 'orders', orderId);
+      const now = new Date().toISOString();
+      await updateDoc(docRef, { 
+        status,
+        statusLog: arrayUnion({ status, timestamp: now })
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+    }
   },
 
   async updateProduct(id: string, data: Partial<Product>): Promise<void> {
-    const docRef = doc(db, 'products', id);
-    await setDoc(docRef, data, { merge: true });
+    try {
+      const docRef = doc(db, 'products', id);
+      await setDoc(docRef, data, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `products/${id}`);
+    }
   },
 
   async deleteProduct(id: string): Promise<void> {
-    const docRef = doc(db, 'products', id);
-    await deleteDoc(docRef);
+    try {
+      const docRef = doc(db, 'products', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+    }
   },
 
   async deleteOrder(id: string): Promise<void> {
-    const docRef = doc(db, 'orders', id);
-    await deleteDoc(docRef);
+    try {
+      const docRef = doc(db, 'orders', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
+    }
   },
 
   async addProduct(data: Omit<Product, 'id'>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'products'), data);
-    return docRef.id;
+    try {
+      const docRef = await addDoc(collection(db, 'products'), data);
+      return docRef.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'products');
+      return '';
+    }
   },
 
   async seedProducts() {
