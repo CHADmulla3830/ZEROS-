@@ -4,6 +4,7 @@ export interface UserProfile {
   displayName: string;
   photoURL: string;
   role: 'user' | 'admin';
+  wishlist?: string[];
   createdAt: string;
 }
 

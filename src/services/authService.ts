@@ -53,5 +53,25 @@ export const AuthService = {
   async getUserProfile(uid: string): Promise<UserProfile | null> {
     const docSnap = await getDoc(doc(db, 'users', uid));
     return docSnap.exists() ? (docSnap.data() as UserProfile) : null;
+  },
+
+  async toggleWishlist(uid: string, productId: string): Promise<string[]> {
+    const userRef = doc(db, 'users', uid);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) return [];
+    
+    const userData = userDoc.data() as UserProfile;
+    const currentWishlist = userData.wishlist || [];
+    
+    let newWishlist: string[];
+    if (currentWishlist.includes(productId)) {
+      newWishlist = currentWishlist.filter(id => id !== productId);
+    } else {
+      newWishlist = [...currentWishlist, productId];
+    }
+    
+    await setDoc(userRef, { ...userData, wishlist: newWishlist });
+    return newWishlist;
   }
 };

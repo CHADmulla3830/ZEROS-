@@ -114,6 +114,19 @@ export default function App() {
     setIsCartOpen(true);
   };
 
+  const toggleWishlist = async (productId: string) => {
+    if (!user) {
+      AuthService.signInWithGoogle();
+      return;
+    }
+    try {
+      const newWishlist = await AuthService.toggleWishlist(user.uid, productId);
+      setUser(prev => prev ? { ...prev, wishlist: newWishlist } : null);
+    } catch (error) {
+      console.error('Failed to toggle wishlist:', error);
+    }
+  };
+
   const removeFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.product.id !== productId));
   };
@@ -250,6 +263,8 @@ export default function App() {
                       key={product.id} 
                       product={product} 
                       onAddToCart={addToCart} 
+                      onToggleWishlist={toggleWishlist}
+                      isInWishlist={user?.wishlist?.includes(product.id)}
                     />
                   ))}
                 </div>
@@ -269,7 +284,11 @@ export default function App() {
         )}
 
         {view === 'profile' && user && (
-          <UserProfileSection user={user} />
+          <UserProfileSection 
+            user={user} 
+            onAddToCart={addToCart}
+            onToggleWishlist={toggleWishlist}
+          />
         )}
 
         {view === 'admin' && isAdmin && (

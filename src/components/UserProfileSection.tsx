@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Clock, CheckCircle, XCircle, Loader2, X, AlertTriangle } from 'lucide-react';
-import { Order, UserProfile } from '../types';
+import { ShoppingBag, Clock, CheckCircle, XCircle, Loader2, X, AlertTriangle, Heart } from 'lucide-react';
+import { Order, UserProfile, Product } from '../types';
 import { ProductService } from '../services/productService';
 import { format } from 'date-fns';
+import { ProductCard } from './ProductCard';
 
 interface UserProfileSectionProps {
   user: UserProfile;
+  onAddToCart?: (product: Product) => void;
+  onToggleWishlist?: (productId: string) => void;
 }
 
-export const UserProfileSection: React.FC<UserProfileSectionProps> = ({ user }) => {
+export const UserProfileSection: React.FC<UserProfileSectionProps> = ({ 
+  user, 
+  onAddToCart,
+  onToggleWishlist 
+}) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingWishlist, setIsLoadingWishlist] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -21,9 +30,27 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({ user }) 
     setIsLoading(false);
   };
 
+  const fetchWishlist = async () => {
+    if (!user.wishlist || user.wishlist.length === 0) {
+      setWishlistProducts([]);
+      return;
+    }
+    setIsLoadingWishlist(true);
+    try {
+      const allProducts = await ProductService.getAllProducts();
+      const filtered = allProducts.filter(p => user.wishlist?.includes(p.id));
+      setWishlistProducts(filtered);
+    } catch (error) {
+      console.error('Failed to fetch wishlist products:', error);
+    } finally {
+      setIsLoadingWishlist(false);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
-  }, [user.uid]);
+    fetchWishlist();
+  }, [user.uid, user.wishlist]);
 
   const handleCancelOrder = async () => {
     if (!orderToCancel) return;
@@ -62,58 +89,96 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({ user }) 
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-8 border-b border-gray-100 flex items-center gap-3">
-          <ShoppingBag className="w-6 h-6 text-indigo-600" />
-          <h2 className="text-2xl font-bold">Order History</h2>
-        </div>
-        
-        <div className="p-8">
-          {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-600" /></div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">You haven't placed any orders yet.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-12">
+          <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-8 border-b border-gray-100 flex items-center gap-3">
+              <ShoppingBag className="w-6 h-6 text-indigo-600" />
+              <h2 className="text-2xl font-bold">Order History</h2>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {orders.map(order => (
-                <div key={order.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-indigo-200 transition-colors">
-                  <div className="flex items-center gap-6 mb-4 md:mb-0">
-                    <div className={`p-4 rounded-2xl ${
-                      order.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 
-                      order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'
-                    }`}>
-                      {order.status === 'completed' ? <CheckCircle /> : order.status === 'pending' ? <Clock /> : <XCircle />}
-                    </div>
-                    <div>
-                      <p className="text-xs font-mono text-gray-400 mb-1">#{order.id.slice(-8).toUpperCase()}</p>
-                      <h3 className="font-bold text-gray-900">
-                        {order.items.map(i => i.name).join(', ')}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {format(new Date(order.createdAt), 'PPP')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900">৳{order.totalAmount}</p>
-                      <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">{order.paymentMethod}</p>
-                    </div>
-                    {order.status === 'pending' && (
-                      <button 
-                        onClick={() => setOrderToCancel(order)}
-                        className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-100 transition-all"
-                      >
-                        Cancel Order
-                      </button>
-                    )}
-                  </div>
+            
+            <div className="p-8">
+              {isLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-600" /></div>
+              ) : orders.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">You haven't placed any orders yet.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-6">
+                  {orders.map(order => (
+                    <div key={order.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-indigo-200 transition-colors">
+                      <div className="flex items-center gap-6 mb-4 md:mb-0">
+                        <div className={`p-4 rounded-2xl ${
+                          order.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 
+                          order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {order.status === 'completed' ? <CheckCircle /> : order.status === 'pending' ? <Clock /> : <XCircle />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-mono text-gray-400 mb-1">#{order.id.slice(-8).toUpperCase()}</p>
+                          <h3 className="font-bold text-gray-900">
+                            {order.items.map(i => i.name).join(', ')}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(order.createdAt), 'PPP')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-gray-900">৳{order.totalAmount}</p>
+                          <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">{order.paymentMethod}</p>
+                        </div>
+                        {order.status === 'pending' && (
+                          <button 
+                            onClick={() => setOrderToCancel(order)}
+                            className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-100 transition-all"
+                          >
+                            Cancel Order
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+
+        <div className="space-y-12">
+          <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden h-full">
+            <div className="p-8 border-b border-gray-100 flex items-center gap-3">
+              <Heart className="w-6 h-6 text-red-500" />
+              <h2 className="text-2xl font-bold">Wishlist</h2>
+            </div>
+            
+            <div className="p-8">
+              {isLoadingWishlist ? (
+                <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-600" /></div>
+              ) : wishlistProducts.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Heart className="w-8 h-8 text-gray-200" />
+                  </div>
+                  <p className="text-gray-500">Your wishlist is empty.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6">
+                  {wishlistProducts.map(product => (
+                    <ProductCard 
+                      key={product.id} 
+                      product={product} 
+                      onAddToCart={onAddToCart || (() => {})} 
+                      onToggleWishlist={onToggleWishlist}
+                      isInWishlist={true}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

@@ -1,13 +1,20 @@
 import React from 'react';
 import { Product } from '../types';
-import { ShoppingCart, Plus } from 'lucide-react';
+import { ShoppingCart, Plus, Heart } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
+  onToggleWishlist?: (productId: string) => void;
+  isInWishlist?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ 
+  product, 
+  onAddToCart,
+  onToggleWishlist,
+  isInWishlist = false
+}) => {
   return (
     <div className="group bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col h-full">
       <div className="relative aspect-[4/3] overflow-hidden">
@@ -17,6 +24,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           referrerPolicy="no-referrer"
         />
+        <div className="absolute top-4 right-4 flex flex-col gap-2">
+          {onToggleWishlist && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleWishlist(product.id);
+              }}
+              className={`p-2 rounded-xl backdrop-blur-md transition-all ${
+                isInWishlist 
+                  ? 'bg-red-500 text-white shadow-lg shadow-red-200' 
+                  : 'bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white'
+              }`}
+            >
+              <Heart className={`w-5 h-5 ${isInWishlist ? 'fill-current' : ''}`} />
+            </button>
+          )}
+        </div>
         {product.featured && (
           <div className="absolute top-4 left-4 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg">
             Featured
