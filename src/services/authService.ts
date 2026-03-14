@@ -33,13 +33,24 @@ export const AuthService = {
       }
       return userDoc.data() as UserProfile;
     } catch (error: any) {
-      console.error("Error signing in with Google", error);
+      console.error("Firebase Auth Error Details:", {
+        code: error.code,
+        message: error.message,
+        customData: error.customData,
+        domain: window.location.hostname
+      });
+
       if (error.code === 'auth/unauthorized-domain') {
-        alert('This domain is not authorized in Firebase. Please add your Vercel domain to the "Authorized domains" list in the Firebase Console (Authentication > Settings).');
+        const currentDomain = window.location.hostname;
+        alert(`Domain Unauthorized: "${currentDomain}" is not in your Firebase Authorized Domains list.\n\nPlease add these TWO domains to Authentication > Settings > Authorized domains:\n1. ${currentDomain}\n2. ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app`);
+      } else if (error.code === 'auth/popup-blocked') {
+        alert('Sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        alert('Google Sign-in is not enabled in your Firebase project. Please enable it in Authentication > Sign-in method.');
       } else if (error.code === 'permission-denied') {
         handleFirestoreError(error, OperationType.WRITE, 'users');
       } else {
-        alert('Sign in failed: ' + (error.message || 'Unknown error'));
+        alert(`Sign in failed (${error.code}): ${error.message}`);
       }
       return null;
     }
