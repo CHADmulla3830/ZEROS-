@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Clock, CheckCircle, XCircle, Loader2, X, AlertTriangle, Heart } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, XCircle, Loader2, X, AlertTriangle, Heart, ArrowLeft } from 'lucide-react';
 import { Order, UserProfile, Product } from '../types';
 import { ProductService } from '../services/productService';
 import { format } from 'date-fns';
@@ -9,12 +9,14 @@ interface UserProfileSectionProps {
   user: UserProfile;
   onAddToCart?: (product: Product) => void;
   onToggleWishlist?: (productId: string) => void;
+  onBack?: () => void;
 }
 
 export const UserProfileSection: React.FC<UserProfileSectionProps> = ({ 
   user, 
   onAddToCart,
-  onToggleWishlist 
+  onToggleWishlist,
+  onBack
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
@@ -69,6 +71,16 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="flex items-center gap-4 mb-8">
+        <button 
+          onClick={onBack}
+          className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-all group"
+        >
+          <ArrowLeft className="w-6 h-6 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+      </div>
+
       <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden mb-12">
         <div className="p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 bg-gradient-to-br from-indigo-600 to-violet-700 text-white">
           <img src={user.photoURL} className="w-32 h-32 rounded-full border-4 border-white/20" />

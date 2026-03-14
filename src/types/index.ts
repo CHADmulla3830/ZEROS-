@@ -8,6 +8,17 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  userPhoto: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -22,6 +33,8 @@ export interface Product {
   imageUrl: string;
   stock: number;
   featured?: boolean;
+  rating?: number;
+  reviewsCount?: number;
 }
 
 export interface OrderStatusLog {

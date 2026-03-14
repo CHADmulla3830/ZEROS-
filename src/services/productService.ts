@@ -13,7 +13,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Order } from '../types';
+import { Product, Order, Review } from '../types';
 import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 
 export const ProductService = {
@@ -122,7 +122,11 @@ export const ProductService = {
 
   async addProduct(data: Omit<Product, 'id'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'products'), data);
+      const docRef = await addDoc(collection(db, 'products'), {
+        ...data,
+        rating: 0,
+        reviewsCount: 0
+      });
       return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'products');
@@ -130,51 +134,52 @@ export const ProductService = {
     }
   },
 
+  async getReviews(productId: string): Promise<Review[]> {
+    try {
+      const q = query(
+        collection(db, 'reviews'),
+        where('productId', '==', productId),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'reviews');
+      return [];
+    }
+  },
+
+  async addReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      await addDoc(collection(db, 'reviews'), {
+        ...review,
+        createdAt: now
+      });
+
+      // Update product rating
+      const productRef = doc(db, 'products', review.productId);
+      const productSnap = await getDoc(productRef);
+      if (productSnap.exists()) {
+        const productData = productSnap.data() as Product;
+        const currentCount = productData.reviewsCount || 0;
+        const currentRating = productData.rating || 0;
+        const newCount = currentCount + 1;
+        const newRating = ((currentRating * currentCount) + review.rating) / newCount;
+        
+        await updateDoc(productRef, {
+          rating: Number(newRating.toFixed(1)),
+          reviewsCount: newCount
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'reviews');
+    }
+  },
+
   async seedProducts() {
     try {
       const products = [
-        {
-          name: "PUBG Mobile UC",
-          description: "Unknown Cash for PUBG Mobile. Instant delivery.",
-          price: 85,
-          category: "Mobile Games",
-          genre: "Battle Royale",
-          platform: "Mobile",
-          publisher: "Tencent",
-          releaseDate: "2018-03-19",
-          popularity: 95,
-          imageUrl: "https://picsum.photos/seed/pubg/400/300",
-          stock: 1000,
-          featured: true
-        },
-        {
-          name: "Free Fire Diamonds",
-          description: "Top up diamonds for Garena Free Fire.",
-          price: 75,
-          category: "Mobile Games",
-          genre: "Battle Royale",
-          platform: "Mobile",
-          publisher: "Garena",
-          releaseDate: "2017-09-30",
-          popularity: 98,
-          imageUrl: "https://picsum.photos/seed/freefire/400/300",
-          stock: 1000,
-          featured: true
-        },
-        {
-          name: "Steam Wallet Card ($10)",
-          description: "Global Steam Wallet Gift Card.",
-          price: 1250,
-          category: "Gift Cards",
-          genre: "Currency",
-          platform: "PC",
-          publisher: "Valve",
-          releaseDate: "2012-05-01",
-          popularity: 90,
-          imageUrl: "https://picsum.photos/seed/steam/400/300",
-          stock: 50,
-          featured: true
-        },
         {
           name: "Valorant Points (VP)",
           description: "Riot Points for Valorant. Bangladesh Region.",
@@ -187,6 +192,48 @@ export const ProductService = {
           popularity: 92,
           imageUrl: "https://picsum.photos/seed/valorant/400/300",
           stock: 500,
+          featured: true
+        },
+        {
+          name: "Steam Wallet Card ($10)",
+          description: "Global Steam Wallet Gift Card.",
+          price: 1250,
+          category: "PC Games",
+          genre: "Currency",
+          platform: "PC",
+          publisher: "Valve",
+          releaseDate: "2012-05-01",
+          popularity: 90,
+          imageUrl: "https://picsum.photos/seed/steam/400/300",
+          stock: 50,
+          featured: true
+        },
+        {
+          name: "Cyberpunk 2077",
+          description: "Night City changes everyone. Experience the future of open-world RPG.",
+          price: 3500,
+          category: "PC Games",
+          genre: "RPG",
+          platform: "PC",
+          publisher: "CD Projekt Red",
+          releaseDate: "2020-12-10",
+          popularity: 88,
+          imageUrl: "https://picsum.photos/seed/cyberpunk/400/300",
+          stock: 100,
+          featured: false
+        },
+        {
+          name: "Minecraft Java Edition",
+          description: "Build, explore, and survive in the ultimate sandbox game.",
+          price: 2200,
+          category: "PC Games",
+          genre: "Sandbox",
+          platform: "PC",
+          publisher: "Mojang",
+          releaseDate: "2011-11-18",
+          popularity: 99,
+          imageUrl: "https://picsum.photos/seed/minecraft/400/300",
+          stock: 200,
           featured: false
         }
       ];

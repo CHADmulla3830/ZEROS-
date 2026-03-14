@@ -42,7 +42,7 @@ export const AuthService = {
 
       if (error.code === 'auth/unauthorized-domain') {
         const currentDomain = window.location.hostname;
-        alert(`Domain Unauthorized: "${currentDomain}" is not in your Firebase Authorized Domains list.\n\nPlease add these TWO domains to Authentication > Settings > Authorized domains:\n1. ${currentDomain}\n2. ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app`);
+        alert(`Domain Unauthorized!\n\nYour current domain is: ${currentDomain}\n\nTo fix this:\n1. Go to your Firebase Console (link in chat)\n2. Go to Authentication > Settings > Authorized domains\n3. Add "${currentDomain}" to the list.`);
       } else if (error.code === 'auth/popup-blocked') {
         alert('Sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
       } else if (error.code === 'auth/operation-not-allowed') {

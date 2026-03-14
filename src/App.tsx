@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
@@ -6,10 +6,11 @@ import { Cart } from './components/Cart';
 import { Checkout } from './components/Checkout';
 import { AdminPanel } from './components/AdminPanel';
 import { UserProfileSection } from './components/UserProfileSection';
+import { ProductDetail } from './components/ProductDetail';
 import { Product, UserProfile } from './types';
 import { ProductService } from './services/productService';
 import { AuthService } from './services/authService';
-import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, Sparkles, X } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -19,10 +20,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   
   // Filter States
-  const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
-  const [platformFilter, setPlatformFilter] = useState('All');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'date' | 'popularity'>('popularity');
 
@@ -31,6 +30,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -69,19 +69,9 @@ export default function App() {
       );
     }
 
-    // Category
-    if (activeCategory !== 'All') {
-      result = result.filter(p => p.category === activeCategory);
-    }
-
     // Genre
     if (genreFilter !== 'All') {
       result = result.filter(p => p.genre === genreFilter);
-    }
-
-    // Platform
-    if (platformFilter !== 'All') {
-      result = result.filter(p => p.platform === platformFilter);
     }
 
     // Price Range
@@ -97,9 +87,9 @@ export default function App() {
     });
 
     setFilteredProducts(result);
-  }, [activeCategory, searchQuery, genreFilter, platformFilter, priceRange, sortBy, products]);
+  }, [searchQuery, genreFilter, priceRange, sortBy, products]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = async (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
@@ -132,20 +122,26 @@ export default function App() {
   };
 
   const genres = ['All', ...new Set(products.map(p => p.genre))];
-  const platforms = ['All', ...new Set(products.map(p => p.platform))];
-  const categories = ['All', ...new Set(products.map(p => p.category))];
 
   const isAdmin = user?.role === 'admin' || user?.email === 'chadmulla7@gmail.com';
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-medium">Loading ZEROS'...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-indigo-100 selection:text-indigo-900">
       <Navbar 
         user={user} 
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
         onCartClick={() => setIsCartOpen(true)}
         onHomeClick={() => {
           setView('shop');
-          setActiveCategory('All');
           setSearchQuery('');
         }}
         onProfileClick={() => setView('profile')}
@@ -161,36 +157,38 @@ export default function App() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
               <div className="flex flex-col gap-8 mb-12">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                    {categories.map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setActiveCategory(cat)}
-                        className={`px-6 py-2.5 rounded-2xl text-sm font-bold whitespace-nowrap transition-all ${
-                          activeCategory === cat 
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-                            : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-100'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                      <Gamepad2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">PC Games</h2>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Showing {filteredProducts.length} results</p>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <div className="relative flex-grow md:w-80">
+                    <div className="relative flex-grow md:w-96">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input 
                         type="text"
                         placeholder="Search by title, publisher, genre..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none shadow-sm"
+                        className="w-full pl-12 pr-12 py-4 bg-white border border-gray-100 rounded-[1.5rem] focus:ring-2 focus:ring-indigo-500 transition-all outline-none shadow-sm font-medium"
                       />
+                      {searchQuery && (
+                        <button 
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-all"
+                        >
+                          <X className="w-4 h-4 text-gray-400" />
+                        </button>
+                      )}
                     </div>
                     <button 
                       onClick={() => setShowFilters(!showFilters)}
-                      className={`p-3 rounded-2xl border transition-all ${showFilters ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-100 text-gray-500'}`}
+                      className={`p-4 rounded-2xl border transition-all ${showFilters ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}
                     >
                       <SlidersHorizontal className="w-5 h-5" />
                     </button>
@@ -198,35 +196,25 @@ export default function App() {
                 </div>
 
                 {showFilters && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-8 bg-white rounded-[2rem] border border-gray-100 shadow-sm animate-in fade-in slide-in-from-top-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-in fade-in slide-in-from-top-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Genre</label>
                       <select 
                         value={genreFilter}
                         onChange={(e) => setGenreFilter(e.target.value)}
-                        className="w-full p-3 bg-gray-50 border-none rounded-xl text-sm font-medium outline-none"
+                        className="w-full p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
                       >
                         {genres.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Platform</label>
-                      <select 
-                        value={platformFilter}
-                        onChange={(e) => setPlatformFilter(e.target.value)}
-                        className="w-full p-3 bg-gray-50 border-none rounded-xl text-sm font-medium outline-none"
-                      >
-                        {platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-                    <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Sort By</label>
                       <div className="relative">
-                        <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <select 
                           value={sortBy}
                           onChange={(e) => setSortBy(e.target.value as any)}
-                          className="w-full pl-10 pr-3 py-3 bg-gray-50 border-none rounded-xl text-sm font-medium outline-none"
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
                         >
                           <option value="popularity">Popularity</option>
                           <option value="price-asc">Price: Low to High</option>
@@ -236,7 +224,10 @@ export default function App() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Max Price: ৳{priceRange[1]}</label>
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Max Price</label>
+                        <span className="text-sm font-black text-indigo-600">৳{priceRange[1]}</span>
+                      </div>
                       <input 
                         type="range" 
                         min="0" 
@@ -251,28 +242,29 @@ export default function App() {
                 )}
               </div>
 
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-24">
-                  <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-                  <p className="text-gray-500 font-medium">Loading ZEROS'...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {filteredProducts.map(product => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product} 
-                      onAddToCart={addToCart} 
-                      onToggleWishlist={toggleWishlist}
-                      isInWishlist={user?.wishlist?.includes(product.id)}
-                    />
-                  ))}
+              {searchQuery && (
+                <div className="flex items-center gap-2 mb-8 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl w-fit">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-widest">AI Enhanced Search Results</span>
                 </div>
               )}
 
-              {!isLoading && filteredProducts.length === 0 && (
-                <div className="text-center py-24">
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {filteredProducts.map(product => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onAddToCart={addToCart} 
+                    onToggleWishlist={toggleWishlist}
+                    onClick={setSelectedProduct}
+                    isInWishlist={user?.wishlist?.includes(product.id)}
+                  />
+                ))}
+              </div>
+
+              {filteredProducts.length === 0 && (
+                <div className="text-center py-24 bg-white rounded-[3rem] border border-dashed border-gray-200">
+                  <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Search className="w-10 h-10 text-gray-300" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900">No games found</h3>
@@ -288,6 +280,7 @@ export default function App() {
             user={user} 
             onAddToCart={addToCart}
             onToggleWishlist={toggleWishlist}
+            onBack={() => setView('shop')}
           />
         )}
 
@@ -325,22 +318,55 @@ export default function App() {
         />
       )}
 
+      {selectedProduct && (
+        <ProductDetail 
+          product={selectedProduct}
+          user={user}
+          onClose={() => setSelectedProduct(null)}
+          onAddToCart={(p) => {
+            addToCart(p);
+            setSelectedProduct(null);
+          }}
+          onToggleWishlist={toggleWishlist}
+          isInWishlist={user?.wishlist?.includes(selectedProduct.id) || false}
+        />
+      )}
+
       <footer className="bg-white border-t border-gray-100 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
-              <Gamepad2 className="w-5 h-5 text-white" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div className="col-span-2">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-black text-xl">Z</div>
+                <span className="text-xl font-black tracking-tighter uppercase">Zeros'</span>
+              </div>
+              <p className="text-gray-500 max-w-sm leading-relaxed">
+                Your ultimate destination for premium PC games. Instant delivery, secure payments, and 24/7 support.
+              </p>
             </div>
-            <span className="text-lg font-bold text-gray-900">ZEROS'</span>
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Quick Links</h4>
+              <ul className="space-y-4">
+                <li><button onClick={() => setView('shop')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Home</button></li>
+                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Privacy Policy</button></li>
+                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Terms of Service</button></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Support</h4>
+              <ul className="space-y-4">
+                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Contact Us</button></li>
+                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">FAQ</button></li>
+                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Refund Policy</button></li>
+              </ul>
+            </div>
           </div>
-          <p className="text-gray-500 text-sm mb-8">
-            The ultimate gaming marketplace in Bangladesh. <br />
-            © 2026 ZEROS'. All rights reserved.
-          </p>
-          <div className="flex justify-center gap-8">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Privacy Policy</span>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Terms of Service</span>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contact Us</span>
+          <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">© 2026 ZEROS' Gaming Store. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Bkash_logo.png/220px-Bkash_logo.png" className="h-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer" alt="bKash" />
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Nagad_logo.png/220px-Nagad_logo.png" className="h-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer" alt="Nagad" />
+            </div>
           </div>
         </div>
       </footer>

@@ -25,11 +25,34 @@
         "description": { "type": "string" },
         "price": { "type": "number" },
         "category": { "type": "string" },
+        "genre": { "type": "string" },
+        "platform": { "type": "string" },
+        "publisher": { "type": "string" },
+        "releaseDate": { "type": "string" },
+        "popularity": { "type": "number" },
         "imageUrl": { "type": "string" },
         "stock": { "type": "integer" },
-        "featured": { "type": "boolean" }
+        "featured": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "integer" }
       },
       "required": ["name", "price", "category"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "userId", "rating", "comment"]
     },
     "Order": {
       "title": "Order",
@@ -61,6 +84,10 @@
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Customer orders"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Product reviews"
     }
   }
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown } from 'lucide-react';
+import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Sparkles, Search } from 'lucide-react';
 import { Product, Order } from '../types';
 import { ProductService } from '../services/productService';
+import { AiService } from '../services/aiService';
 import { format } from 'date-fns';
 
 export const AdminPanel: React.FC = () => {
@@ -16,6 +17,11 @@ export const AdminPanel: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: 'product' | 'order' } | null>(null);
 
+  // AI Fetch State
+  const [aiSearchQuery, setAiSearchQuery] = useState('');
+  const [isAiFetching, setIsAiFetching] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
+
   // Filters
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('All');
@@ -25,9 +31,9 @@ export const AdminPanel: React.FC = () => {
     name: '',
     description: '',
     price: 0,
-    category: '',
+    category: 'PC Games',
     genre: '',
-    platform: '',
+    platform: 'PC',
     publisher: '',
     releaseDate: new Date().toISOString().split('T')[0],
     popularity: 50,
@@ -51,22 +57,52 @@ export const AdminPanel: React.FC = () => {
     setIsLoading(false);
   };
 
+  const handleAiFetch = async () => {
+    if (!aiSearchQuery.trim()) return;
+    setIsAiFetching(true);
+    try {
+      const details = await AiService.fetchGameDetails(aiSearchQuery);
+      if (details) {
+        setProductForm(prev => ({
+          ...prev,
+          name: details.name || prev.name,
+          description: details.description || prev.description,
+          price: details.price || prev.price,
+          genre: details.genre || prev.genre,
+          publisher: details.publisher || prev.publisher,
+          releaseDate: details.releaseDate || prev.releaseDate,
+          imageUrl: details.imageUrl || prev.imageUrl
+        }));
+      }
+    } finally {
+      setIsAiFetching(false);
+    }
+  };
+
   const handleUpdateStatus = async (orderId: string, status: Order['status']) => {
-    await ProductService.updateOrderStatus(orderId, status);
-    fetchData();
+    setIsActionLoading(orderId);
+    try {
+      await ProductService.updateOrderStatus(orderId, status);
+      await fetchData();
+    } finally {
+      setIsActionLoading(null);
+    }
   };
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    
-    if (confirmDelete.type === 'product') {
-      await ProductService.deleteProduct(confirmDelete.id);
-    } else {
-      await ProductService.deleteOrder(confirmDelete.id);
+    setIsActionLoading('delete');
+    try {
+      if (confirmDelete.type === 'product') {
+        await ProductService.deleteProduct(confirmDelete.id);
+      } else {
+        await ProductService.deleteOrder(confirmDelete.id);
+      }
+      setConfirmDelete(null);
+      await fetchData();
+    } finally {
+      setIsActionLoading(null);
     }
-    
-    setConfirmDelete(null);
-    fetchData();
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,28 +118,33 @@ export const AdminPanel: React.FC = () => {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingProduct) {
-      await ProductService.updateProduct(editingProduct.id, productForm);
-    } else {
-      await ProductService.addProduct(productForm);
+    setIsActionLoading('save');
+    try {
+      if (editingProduct) {
+        await ProductService.updateProduct(editingProduct.id, productForm);
+      } else {
+        await ProductService.addProduct(productForm);
+      }
+      setEditingProduct(null);
+      setIsAddingProduct(false);
+      setProductForm({
+        name: '',
+        description: '',
+        price: 0,
+        category: 'PC Games',
+        genre: '',
+        platform: 'PC',
+        publisher: '',
+        releaseDate: new Date().toISOString().split('T')[0],
+        popularity: 50,
+        imageUrl: '',
+        stock: 0,
+        featured: false
+      });
+      await fetchData();
+    } finally {
+      setIsActionLoading(null);
     }
-    setEditingProduct(null);
-    setIsAddingProduct(false);
-    setProductForm({
-      name: '',
-      description: '',
-      price: 0,
-      category: '',
-      genre: '',
-      platform: '',
-      publisher: '',
-      releaseDate: new Date().toISOString().split('T')[0],
-      popularity: 50,
-      imageUrl: '',
-      stock: 0,
-      featured: false
-    });
-    fetchData();
   };
 
   const filteredOrders = orders.filter(o => {
@@ -150,7 +191,7 @@ export const AdminPanel: React.FC = () => {
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-4 font-bold">Product</th>
-                  <th className="px-6 py-4 font-bold">Category</th>
+                  <th className="px-6 py-4 font-bold">Genre</th>
                   <th className="px-6 py-4 font-bold">Price</th>
                   <th className="px-6 py-4 font-bold">Stock</th>
                   <th className="px-6 py-4 font-bold">Actions</th>
@@ -163,7 +204,7 @@ export const AdminPanel: React.FC = () => {
                       <img src={p.imageUrl} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
                       <span className="font-medium">{p.name}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{p.category}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{p.genre}</td>
                     <td className="px-6 py-4 font-bold">৳{p.price}</td>
                     <td className="px-6 py-4 text-sm">{p.stock}</td>
                     <td className="px-6 py-4">
@@ -278,17 +319,17 @@ export const AdminPanel: React.FC = () => {
                           </button>
                           <button 
                             onClick={() => handleUpdateStatus(o.id, 'completed')} 
-                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                            disabled={o.status === 'completed'}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
+                            disabled={o.status === 'completed' || isActionLoading === o.id}
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                           </button>
                           <button 
                             onClick={() => handleUpdateStatus(o.id, 'cancelled')} 
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                            disabled={o.status === 'cancelled'}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                            disabled={o.status === 'cancelled' || isActionLoading === o.id}
                           >
-                            <XCircle className="w-4 h-4" />
+                            {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                           </button>
                           <button 
                             onClick={() => setConfirmDelete({ id: o.id, type: 'order' })}
@@ -317,6 +358,34 @@ export const AdminPanel: React.FC = () => {
                 <X className="w-6 h-6" />
               </button>
             </div>
+
+            {!editingProduct && (
+              <div className="mb-8 p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                <label className="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-3">AI Quick Fill</label>
+                <div className="flex gap-3">
+                  <div className="relative flex-grow">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
+                    <input 
+                      type="text"
+                      placeholder="Enter game name (e.g. Elden Ring)"
+                      value={aiSearchQuery}
+                      onChange={(e) => setAiSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-white border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleAiFetch}
+                    disabled={isAiFetching || !aiSearchQuery.trim()}
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isAiFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    <span>Fetch</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-indigo-400 mt-2 ml-1">AI will automatically find description, price, genre, and more.</p>
+              </div>
+            )}
+
             <form onSubmit={handleSaveProduct} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -329,11 +398,21 @@ export const AdminPanel: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Category</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Genre</label>
                   <input 
                     required
-                    value={productForm.category}
-                    onChange={e => setProductForm({...productForm, category: e.target.value})}
+                    placeholder="e.g. RPG, FPS, Action"
+                    value={productForm.genre}
+                    onChange={e => setProductForm({...productForm, genre: e.target.value})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Publisher</label>
+                  <input 
+                    required
+                    value={productForm.publisher}
+                    onChange={e => setProductForm({...productForm, publisher: e.target.value})}
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -354,6 +433,16 @@ export const AdminPanel: React.FC = () => {
                     required
                     value={productForm.stock}
                     onChange={e => setProductForm({...productForm, stock: parseInt(e.target.value)})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Release Date</label>
+                  <input 
+                    type="date"
+                    required
+                    value={productForm.releaseDate}
+                    onChange={e => setProductForm({...productForm, releaseDate: e.target.value})}
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -381,7 +470,12 @@ export const AdminPanel: React.FC = () => {
                   </label>
                 </div>
               </div>
-              <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+              <button 
+                type="submit" 
+                disabled={isActionLoading === 'save'}
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isActionLoading === 'save' && <Loader2 className="w-5 h-5 animate-spin" />}
                 {editingProduct ? 'Update Product' : 'Add Product'}
               </button>
             </form>
@@ -460,8 +554,10 @@ export const AdminPanel: React.FC = () => {
               </button>
               <button 
                 onClick={handleDelete}
-                className="flex-1 px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+                disabled={isActionLoading === 'delete'}
+                className="flex-1 px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2 disabled:opacity-50"
               >
+                {isActionLoading === 'delete' && <Loader2 className="w-4 h-4 animate-spin" />}
                 Delete
               </button>
             </div>

@@ -36,6 +36,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
               ZEROS'
             </span>
+            <div className="flex items-center gap-1.5 ml-1">
+              <div className="w-5 h-5 bg-[#E2136E] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-sm" title="bKash Supported">b</div>
+              <div className="w-5 h-5 bg-[#F7941D] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-sm" title="Nagad Supported">n</div>
+            </div>
           </div>
 
           <div className="hidden md:flex items-center gap-8">

@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Product } from '../types';
-import { ShoppingCart, Plus, Heart } from 'lucide-react';
+import { ShoppingCart, Plus, Heart, Star, Loader2 } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (product: Product) => Promise<void> | void;
   onToggleWishlist?: (productId: string) => void;
+  onClick?: (product: Product) => void;
   isInWishlist?: boolean;
 }
 
@@ -13,10 +14,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   product, 
   onAddToCart,
   onToggleWishlist,
+  onClick,
   isInWishlist = false
 }) => {
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsAdding(true);
+    try {
+      await onAddToCart(product);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
-    <div className="group bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col h-full">
+    <div 
+      onClick={() => onClick?.(product)}
+      className="group bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col h-full cursor-pointer"
+    >
       <div className="relative aspect-[4/3] overflow-hidden">
         <img 
           src={product.imageUrl} 
@@ -50,10 +67,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       
       <div className="p-6 flex flex-col flex-grow">
         <div className="mb-4">
-          <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-            {product.category}
-          </span>
-          <h3 className="text-lg font-bold text-gray-900 mt-1 line-clamp-1">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+              {product.category}
+            </span>
+            <div className="flex items-center gap-1">
+              <Star className="w-3 h-3 text-amber-400 fill-current" />
+              <span className="text-xs font-bold text-gray-600">{product.rating || '0.0'}</span>
+            </div>
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 line-clamp-1">
             {product.name}
           </h3>
           <p className="text-sm text-gray-500 mt-2 line-clamp-2">
@@ -67,10 +90,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span className="text-xl font-bold text-gray-900">৳{product.price}</span>
           </div>
           <button 
-            onClick={() => onAddToCart(product)}
-            className="bg-gray-900 text-white p-3 rounded-2xl hover:bg-indigo-600 transition-colors shadow-lg shadow-gray-200"
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            className="bg-gray-900 text-white p-3 rounded-2xl hover:bg-indigo-600 transition-colors shadow-lg shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="w-5 h-5" />
+            {isAdding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
           </button>
         </div>
       </div>
