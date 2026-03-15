@@ -15,6 +15,13 @@ import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, Spar
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [siteContent, setSiteContent] = useState({ 
+    contactUs: '', 
+    refundPolicy: '',
+    privacyPolicy: '',
+    termsOfService: '',
+    faq: ''
+  });
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,13 +38,18 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [activePolicy, setActivePolicy] = useState<'contact' | 'refund' | 'privacy' | 'terms' | 'faq' | null>(null);
 
   useEffect(() => {
     const init = async () => {
       await ProductService.seedProducts();
-      const allProducts = await ProductService.getAllProducts();
+      const [allProducts, content] = await Promise.all([
+        ProductService.getAllProducts(),
+        ProductService.getSiteContent()
+      ]);
       setProducts(allProducts);
       setFilteredProducts(allProducts);
+      if (content) setSiteContent(content);
       setIsLoading(false);
     };
 
@@ -332,6 +344,31 @@ export default function App() {
         />
       )}
 
+      {activePolicy && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative">
+            <button 
+              onClick={() => setActivePolicy(null)}
+              className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold mb-6">
+              {activePolicy === 'contact' ? 'Contact Us' : 
+               activePolicy === 'refund' ? 'Refund Policy' :
+               activePolicy === 'privacy' ? 'Privacy Policy' :
+               activePolicy === 'terms' ? 'Terms of Service' : 'FAQ'}
+            </h2>
+            <div className="prose prose-indigo max-h-[60vh] overflow-y-auto pr-4 text-gray-600 leading-relaxed whitespace-pre-wrap">
+              {activePolicy === 'contact' ? siteContent.contactUs : 
+               activePolicy === 'refund' ? siteContent.refundPolicy :
+               activePolicy === 'privacy' ? siteContent.privacyPolicy :
+               activePolicy === 'terms' ? siteContent.termsOfService : siteContent.faq}
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="bg-white border-t border-gray-100 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
@@ -348,24 +385,24 @@ export default function App() {
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Quick Links</h4>
               <ul className="space-y-4">
                 <li><button onClick={() => setView('shop')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Home</button></li>
-                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Privacy Policy</button></li>
-                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Terms of Service</button></li>
+                <li><button onClick={() => setActivePolicy('privacy')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Privacy Policy</button></li>
+                <li><button onClick={() => setActivePolicy('terms')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Terms of Service</button></li>
               </ul>
             </div>
             <div>
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Support</h4>
               <ul className="space-y-4">
-                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Contact Us</button></li>
-                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">FAQ</button></li>
-                <li><button className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Refund Policy</button></li>
+                <li><button onClick={() => setActivePolicy('contact')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Contact Us</button></li>
+                <li><button onClick={() => setActivePolicy('faq')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">FAQ</button></li>
+                <li><button onClick={() => setActivePolicy('refund')} className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors">Refund Policy</button></li>
               </ul>
             </div>
           </div>
           <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">© 2026 ZEROS' Gaming Store. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Bkash_logo.png/220px-Bkash_logo.png" className="h-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer" alt="bKash" />
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Nagad_logo.png/220px-Nagad_logo.png" className="h-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer" alt="Nagad" />
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="h-6 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer object-contain" alt="bKash" />
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="h-6 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer object-contain" alt="Nagad" />
             </div>
           </div>
         </div>

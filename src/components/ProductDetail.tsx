@@ -126,7 +126,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <span className="text-sm font-bold text-gray-400">({product.reviewsCount || 0} Reviews)</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-gray-900">৳{product.price}</span>
+                {product.discountPrice && product.discountPrice < product.price ? (
+                  <>
+                    <span className="text-4xl font-black text-gray-900">৳{product.discountPrice}</span>
+                    <span className="text-lg font-bold text-gray-400 line-through">৳{product.price}</span>
+                  </>
+                ) : (
+                  <span className="text-4xl font-black text-gray-900">৳{product.price}</span>
+                )}
                 <span className="text-sm font-bold text-emerald-500">In Stock</span>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, CreditCard, Smartphone, CheckCircle2, Loader2 } from 'lucide-react';
-import { Product, Order } from '../types';
+import { X, ShieldCheck, CreditCard, Smartphone, CheckCircle2, Loader2, Tag, Ticket } from 'lucide-react';
+import { Product, Order, PromoCode } from '../types';
 import { ProductService } from '../services/productService';
 
 interface CheckoutProps {
@@ -16,8 +16,54 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
   const [transactionId, setTransactionId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<'details' | 'success'>('details');
+  
+  // Promo code states
+  const [promoInput, setPromoInput] = useState('');
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+  const [promoError, setPromoError] = useState('');
 
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => {
+    const price = item.product.discountPrice && item.product.discountPrice < item.product.price 
+      ? item.product.discountPrice 
+      : item.product.price;
+    return sum + price * item.quantity;
+  }, 0);
+
+  const calculateDiscount = () => {
+    if (!appliedPromo) return 0;
+    if (appliedPromo.type === 'percentage') {
+      return (subtotal * appliedPromo.value) / 100;
+    }
+    return appliedPromo.value;
+  };
+
+  const discountAmount = calculateDiscount();
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    
+    setIsValidatingPromo(true);
+    setPromoError('');
+    try {
+      const promo = await ProductService.validatePromoCode(promoInput.trim().toUpperCase());
+      if (promo) {
+        if (promo.minPurchase && subtotal < promo.minPurchase) {
+          setPromoError(`Minimum purchase of ৳${promo.minPurchase} required`);
+        } else {
+          setAppliedPromo(promo);
+          setPromoInput('');
+        }
+      } else {
+        setPromoError('Invalid or expired promo code');
+      }
+    } catch (error) {
+      setPromoError('Error validating promo code');
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,10 +76,14 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
         items: items.map(i => ({
           productId: i.product.id,
           name: i.product.name,
-          price: i.product.price,
+          price: i.product.discountPrice && i.product.discountPrice < i.product.price 
+            ? i.product.discountPrice 
+            : i.product.price,
           quantity: i.quantity
         })),
         totalAmount: total,
+        discountAmount: discountAmount || 0,
+        promoCode: appliedPromo?.code || null,
         paymentMethod,
         paymentNumber,
         transactionId,
@@ -72,20 +122,84 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row">
-        <div className="p-8 md:w-1/2 bg-gray-50 border-r border-gray-100">
+      <div className="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row">
+        <div className="p-8 md:w-5/12 bg-gray-50 border-r border-gray-100 overflow-y-auto max-h-[90vh]">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
-          <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
-            {items.map((item) => (
-              <div key={item.product.id} className="flex justify-between text-sm">
-                <span className="text-gray-600">{item.product.name} x {item.quantity}</span>
-                <span className="font-bold text-gray-900">৳{item.product.price * item.quantity}</span>
-              </div>
-            ))}
+          <div className="space-y-4 mb-6">
+            {items.map((item) => {
+              const price = item.product.discountPrice && item.product.discountPrice < item.product.price 
+                ? item.product.discountPrice 
+                : item.product.price;
+              return (
+                <div key={item.product.id} className="flex justify-between text-sm">
+                  <div className="flex flex-col">
+                    <span className="text-gray-600 font-medium">{item.product.name} x {item.quantity}</span>
+                    {item.product.discountPrice && item.product.discountPrice < item.product.price && (
+                      <span className="text-[10px] text-emerald-600 font-bold uppercase">Discount Applied</span>
+                    )}
+                  </div>
+                  <span className="font-bold text-gray-900">৳{price * item.quantity}</span>
+                </div>
+              );
+            })}
           </div>
-          <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
-            <span className="font-bold text-gray-900">Total</span>
-            <span className="text-2xl font-bold text-indigo-600">৳{total}</span>
+
+          <div className="space-y-3 pt-6 border-t border-gray-200">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="font-bold text-gray-900">৳{subtotal}</span>
+            </div>
+            
+            {appliedPromo && (
+              <div className="flex justify-between text-sm text-emerald-600">
+                <div className="flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  <span>Promo ({appliedPromo.code})</span>
+                </div>
+                <span className="font-bold">-৳{discountAmount}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2">
+              <span className="font-bold text-gray-900">Total</span>
+              <span className="text-2xl font-bold text-indigo-600">৳{total}</span>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Promo Code</label>
+            <div className="flex gap-2">
+              <div className="relative flex-grow">
+                <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value)}
+                  placeholder="ENTER CODE"
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase"
+                />
+              </div>
+              <button 
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={isValidatingPromo || !promoInput.trim()}
+                className="px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-indigo-600 transition-all disabled:opacity-50"
+              >
+                {isValidatingPromo ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+              </button>
+            </div>
+            {promoError && <p className="mt-2 text-[10px] font-bold text-red-500 uppercase">{promoError}</p>}
+            {appliedPromo && (
+              <div className="mt-2 flex items-center justify-between bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                <span className="text-[10px] font-bold text-emerald-700 uppercase">Code {appliedPromo.code} Applied!</span>
+                <button 
+                  onClick={() => setAppliedPromo(null)}
+                  className="text-[10px] font-bold text-emerald-700 hover:underline uppercase"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-8 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
@@ -101,7 +215,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
           </div>
         </div>
 
-        <div className="p-8 md:w-1/2 relative">
+        <div className="p-8 md:w-7/12 relative bg-white">
           <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-xl transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -118,7 +232,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
                     paymentMethod === 'bkash' ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-gray-100 hover:border-pink-200'
                   }`}
                 >
-                  <Smartphone className="w-4 h-4" />
+                  <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="w-6 h-6 object-contain" alt="bKash" />
                   bKash
                 </button>
                 <button 
@@ -128,7 +242,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
                     paymentMethod === 'nagad' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-100 hover:border-orange-200'
                   }`}
                 >
-                  <Smartphone className="w-4 h-4" />
+                  <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="w-6 h-6 object-contain" alt="Nagad" />
                   Nagad
                 </button>
               </div>
@@ -158,14 +272,16 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
               />
             </div>
 
-            <button 
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black disabled:opacity-50 transition-all shadow-xl shadow-gray-200"
-            >
-              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
-              Confirm Payment
-            </button>
+            <div className="pt-4">
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-gray-900 text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-xl shadow-gray-200"
+              >
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                Confirm Payment (৳{total})
+              </button>
+            </div>
           </form>
         </div>
       </div>

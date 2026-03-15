@@ -87,7 +87,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="mt-auto flex items-center justify-between">
           <div>
             <span className="text-xs text-gray-400 block">Price</span>
-            <span className="text-xl font-bold text-gray-900">৳{product.price}</span>
+            <div className="flex items-center gap-2">
+              {product.discountPrice && product.discountPrice < product.price ? (
+                <>
+                  <span className="text-xl font-bold text-gray-900">৳{product.discountPrice}</span>
+                  <span className="text-xs text-gray-400 line-through">৳{product.price}</span>
+                </>
+              ) : (
+                <span className="text-xl font-bold text-gray-900">৳{product.price}</span>
+              )}
+            </div>
           </div>
           <button 
             onClick={handleAddToCart}

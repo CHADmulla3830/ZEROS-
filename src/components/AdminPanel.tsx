@@ -1,21 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Sparkles, Search } from 'lucide-react';
-import { Product, Order } from '../types';
+import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Sparkles, Search, Tag, Percent } from 'lucide-react';
+import { Product, Order, PromoCode } from '../types';
 import { ProductService } from '../services/productService';
 import { AiService } from '../services/aiService';
 import { format } from 'date-fns';
 
 export const AdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'site' | 'promo'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [siteContent, setSiteContent] = useState({ 
+    contactUs: '', 
+    refundPolicy: '',
+    privacyPolicy: '',
+    termsOfService: '',
+    faq: ''
+  });
   const [isLoading, setIsLoading] = useState(true);
   
   // Modals
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
+  const [isAddingPromo, setIsAddingPromo] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: 'product' | 'order' } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: 'product' | 'order' | 'promo' } | null>(null);
 
   // AI Fetch State
   const [aiSearchQuery, setAiSearchQuery] = useState('');
@@ -31,6 +41,7 @@ export const AdminPanel: React.FC = () => {
     name: '',
     description: '',
     price: 0,
+    discountPrice: 0,
     category: 'PC Games',
     genre: '',
     platform: 'PC',
@@ -42,18 +53,40 @@ export const AdminPanel: React.FC = () => {
     featured: false
   });
 
+  const [promoForm, setPromoForm] = useState<Omit<PromoCode, 'id'>>({
+    code: '',
+    type: 'percentage',
+    value: 0,
+    minPurchase: 0,
+    expiryDate: '',
+    active: true
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'site') {
+      fetchSiteContent();
+    }
+  }, [activeTab]);
+
+  const fetchSiteContent = async () => {
+    const content = await ProductService.getSiteContent();
+    if (content) setSiteContent(content);
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
-    const [p, o] = await Promise.all([
+    const [p, o, pr] = await Promise.all([
       ProductService.getAllProducts(),
-      ProductService.getAllOrders()
+      ProductService.getAllOrders(),
+      ProductService.getPromoCodes()
     ]);
     setProducts(p);
     setOrders(o);
+    setPromoCodes(pr);
     setIsLoading(false);
   };
 
@@ -131,6 +164,7 @@ export const AdminPanel: React.FC = () => {
         name: '',
         description: '',
         price: 0,
+        discountPrice: 0,
         category: 'PC Games',
         genre: '',
         platform: 'PC',
@@ -140,6 +174,42 @@ export const AdminPanel: React.FC = () => {
         imageUrl: '',
         stock: 0,
         featured: false
+      });
+      await fetchData();
+    } finally {
+      setIsActionLoading(null);
+    }
+  };
+
+  const handleSaveSiteContent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsActionLoading('save-site');
+    try {
+      await ProductService.updateSiteContent(siteContent);
+      alert("Site content updated successfully!");
+    } finally {
+      setIsActionLoading(null);
+    }
+  };
+
+  const handleSavePromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsActionLoading('save-promo');
+    try {
+      if (editingPromo) {
+        await ProductService.updatePromoCode(editingPromo.id, promoForm);
+      } else {
+        await ProductService.addPromoCode(promoForm);
+      }
+      setEditingPromo(null);
+      setIsAddingPromo(false);
+      setPromoForm({
+        code: '',
+        type: 'percentage',
+        value: 0,
+        minPurchase: 0,
+        expiryDate: '',
+        active: true
       });
       await fetchData();
     } finally {
@@ -171,6 +241,18 @@ export const AdminPanel: React.FC = () => {
             className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
           >
             Orders
+          </button>
+          <button 
+            onClick={() => setActiveTab('promo')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'promo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Promo Codes
+          </button>
+          <button 
+            onClick={() => setActiveTab('site')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'site' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Site Content
           </button>
         </div>
       </div>
@@ -205,14 +287,39 @@ export const AdminPanel: React.FC = () => {
                       <span className="font-medium">{p.name}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{p.genre}</td>
-                    <td className="px-6 py-4 font-bold">৳{p.price}</td>
-                    <td className="px-6 py-4 text-sm">{p.stock}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-indigo-600">৳{p.price}</span>
+                        {p.discountPrice && p.discountPrice < p.price && (
+                          <span className="text-[10px] text-emerald-500 font-bold">Discount: ৳{p.discountPrice}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${p.stock < 10 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        {p.stock}
+                      </span>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button 
                           onClick={() => {
                             setEditingProduct(p);
-                            setProductForm(p);
+                            setProductForm({
+                              name: p.name,
+                              description: p.description,
+                              price: p.price,
+                              discountPrice: p.discountPrice || 0,
+                              category: p.category,
+                              genre: p.genre,
+                              platform: p.platform,
+                              publisher: p.publisher,
+                              releaseDate: p.releaseDate,
+                              popularity: p.popularity,
+                              imageUrl: p.imageUrl,
+                              stock: p.stock,
+                              featured: p.featured || false
+                            });
                           }}
                           className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                         >
@@ -232,7 +339,7 @@ export const AdminPanel: React.FC = () => {
             </table>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'orders' ? (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-wrap gap-6 items-center">
             <div className="flex items-center gap-2">
@@ -346,6 +453,138 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      ) : activeTab === 'promo' ? (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h2 className="text-xl font-bold">Manage Promo Codes</h2>
+            <button 
+              onClick={() => setIsAddingPromo(true)}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add Promo Code
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-4 font-bold">Code</th>
+                  <th className="px-6 py-4 font-bold">Type</th>
+                  <th className="px-6 py-4 font-bold">Value</th>
+                  <th className="px-6 py-4 font-bold">Min Purchase</th>
+                  <th className="px-6 py-4 font-bold">Status</th>
+                  <th className="px-6 py-4 font-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {promoCodes.map(promo => (
+                  <tr key={promo.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">{promo.code}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm capitalize">{promo.type}</td>
+                    <td className="px-6 py-4 font-bold">
+                      {promo.type === 'percentage' ? `${promo.value}%` : `৳${promo.value}`}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">৳{promo.minPurchase || 0}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${promo.active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                        {promo.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setEditingPromo(promo);
+                            setPromoForm({
+                              code: promo.code,
+                              type: promo.type,
+                              value: promo.value,
+                              minPurchase: promo.minPurchase || 0,
+                              expiryDate: promo.expiryDate || '',
+                              active: promo.active
+                            });
+                          }}
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => setConfirmDelete({ id: promo.id, type: 'promo' })}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+          <h2 className="text-xl font-bold mb-8">Edit Site Content</h2>
+          <form onSubmit={handleSaveSiteContent} className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Contact Us</label>
+                <textarea 
+                  rows={4}
+                  value={siteContent.contactUs}
+                  onChange={e => setSiteContent({...siteContent, contactUs: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                />
+              </div>
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Refund Policy</label>
+                <textarea 
+                  rows={4}
+                  value={siteContent.refundPolicy}
+                  onChange={e => setSiteContent({...siteContent, refundPolicy: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                />
+              </div>
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Privacy Policy</label>
+                <textarea 
+                  rows={4}
+                  value={siteContent.privacyPolicy}
+                  onChange={e => setSiteContent({...siteContent, privacyPolicy: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                />
+              </div>
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Terms of Service</label>
+                <textarea 
+                  rows={4}
+                  value={siteContent.termsOfService}
+                  onChange={e => setSiteContent({...siteContent, termsOfService: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                />
+              </div>
+              <div className="space-y-4 md:col-span-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ</label>
+                <textarea 
+                  rows={6}
+                  value={siteContent.faq}
+                  onChange={e => setSiteContent({...siteContent, faq: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                />
+              </div>
+            </div>
+            <button 
+              type="submit"
+              disabled={isActionLoading === 'save-site'}
+              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
+            >
+              {isActionLoading === 'save-site' ? <Loader2 className="animate-spin" /> : <Sparkles className="w-5 h-5" />}
+              Save Changes
+            </button>
+          </form>
+        </div>
       )}
 
       {/* Product Add/Edit Modal */}
@@ -422,8 +661,18 @@ export const AdminPanel: React.FC = () => {
                     type="number"
                     required
                     value={productForm.price}
-                    onChange={e => setProductForm({...productForm, price: parseFloat(e.target.value)})}
+                    onChange={e => setProductForm({...productForm, price: parseFloat(e.target.value) || 0})}
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Discount Price (৳)</label>
+                  <input 
+                    type="number"
+                    value={productForm.discountPrice || 0}
+                    onChange={e => setProductForm({...productForm, discountPrice: parseFloat(e.target.value) || 0})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Optional"
                   />
                 </div>
                 <div className="space-y-2">
@@ -432,7 +681,7 @@ export const AdminPanel: React.FC = () => {
                     type="number"
                     required
                     value={productForm.stock}
-                    onChange={e => setProductForm({...productForm, stock: parseInt(e.target.value)})}
+                    onChange={e => setProductForm({...productForm, stock: parseInt(e.target.value) || 0})}
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -477,6 +726,98 @@ export const AdminPanel: React.FC = () => {
               >
                 {isActionLoading === 'save' && <Loader2 className="w-5 h-5 animate-spin" />}
                 {editingProduct ? 'Update Product' : 'Add Product'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Promo Code Modal */}
+      {(isAddingPromo || editingPromo) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-bold">{editingPromo ? 'Edit Promo Code' : 'Add Promo Code'}</h2>
+              <button onClick={() => { setIsAddingPromo(false); setEditingPromo(null); }} className="p-2 hover:bg-gray-100 rounded-full transition-all">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePromo} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Promo Code</label>
+                <input 
+                  required
+                  placeholder="e.g. SAVE20"
+                  value={promoForm.code}
+                  onChange={e => setPromoForm({...promoForm, code: e.target.value.toUpperCase()})}
+                  className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Type</label>
+                  <select 
+                    value={promoForm.type}
+                    onChange={e => setPromoForm({...promoForm, type: e.target.value as any})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount (৳)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Value</label>
+                  <input 
+                    type="number"
+                    required
+                    value={promoForm.value}
+                    onChange={e => setPromoForm({...promoForm, value: parseFloat(e.target.value) || 0})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Min Purchase (৳)</label>
+                  <input 
+                    type="number"
+                    value={promoForm.minPurchase}
+                    onChange={e => setPromoForm({...promoForm, minPurchase: parseFloat(e.target.value) || 0})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Expiry Date</label>
+                  <input 
+                    type="date"
+                    value={promoForm.expiryDate}
+                    onChange={e => setPromoForm({...promoForm, expiryDate: e.target.value})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
+                <input 
+                  type="checkbox"
+                  id="promo-active"
+                  checked={promoForm.active}
+                  onChange={e => setPromoForm({...promoForm, active: e.target.checked})}
+                  className="w-5 h-5 accent-indigo-600"
+                />
+                <label htmlFor="promo-active" className="text-sm font-bold text-gray-600">Active and usable</label>
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isActionLoading === 'save-promo'}
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+              >
+                {isActionLoading === 'save-promo' && <Loader2 className="w-5 h-5 animate-spin" />}
+                {editingPromo ? 'Update Promo Code' : 'Create Promo Code'}
               </button>
             </form>
           </div>

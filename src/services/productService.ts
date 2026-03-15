@@ -13,7 +13,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Order, Review } from '../types';
+import { Product, Order, Review, PromoCode } from '../types';
 import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 
 export const ProductService = {
@@ -41,8 +41,13 @@ export const ProductService = {
   async createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'statusLog'>): Promise<string> {
     try {
       const now = new Date().toISOString();
+      // Remove undefined fields to prevent Firestore errors
+      const cleanData = Object.fromEntries(
+        Object.entries(orderData).filter(([_, v]) => v !== undefined)
+      );
+      
       const docRef = await addDoc(collection(db, 'orders'), {
-        ...orderData,
+        ...cleanData,
         createdAt: now,
         status: 'pending',
         statusLog: [{ status: 'pending', timestamp: now }]
@@ -120,6 +125,61 @@ export const ProductService = {
     }
   },
 
+  async getPromoCodes(): Promise<PromoCode[]> {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'promoCodes'));
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PromoCode));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, 'promoCodes');
+      return [];
+    }
+  },
+
+  async addPromoCode(data: Omit<PromoCode, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'promoCodes'), data);
+      return docRef.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'promoCodes');
+      return '';
+    }
+  },
+
+  async updatePromoCode(id: string, data: Partial<PromoCode>): Promise<void> {
+    try {
+      const docRef = doc(db, 'promoCodes', id);
+      await updateDoc(docRef, data);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `promoCodes/${id}`);
+    }
+  },
+
+  async deletePromoCode(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'promoCodes', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `promoCodes/${id}`);
+    }
+  },
+
+  async validatePromoCode(code: string): Promise<PromoCode | null> {
+    try {
+      const q = query(collection(db, 'promoCodes'), where('code', '==', code), where('active', '==', true));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) return null;
+      const promo = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as PromoCode;
+      
+      // Check expiry
+      if (promo.expiryDate && new Date(promo.expiryDate) < new Date()) return null;
+      
+      return promo;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, 'promoCodes/validate');
+      return null;
+    }
+  },
+
   async addProduct(data: Omit<Product, 'id'>): Promise<string> {
     try {
       const docRef = await addDoc(collection(db, 'products'), {
@@ -174,6 +234,44 @@ export const ProductService = {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'reviews');
+    }
+  },
+
+  async getSiteContent(): Promise<any> {
+    try {
+      const docRef = doc(db, 'settings', 'siteContent');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data();
+      } else {
+        const defaultContent = {
+          contactUs: "Contact us at support@zeros.com",
+          refundPolicy: "No refunds for digital products once the key is revealed.",
+          privacyPolicy: "We value your privacy...",
+          termsOfService: "By using our site, you agree...",
+          faq: "Frequently Asked Questions..."
+        };
+        await setDoc(docRef, defaultContent);
+        return defaultContent;
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
+      return {
+        contactUs: "Contact us at support@zeros.com",
+        refundPolicy: "No refunds for digital products once the key is revealed.",
+        privacyPolicy: "We value your privacy...",
+        termsOfService: "By using our site, you agree...",
+        faq: "Frequently Asked Questions..."
+      };
+    }
+  },
+
+  async updateSiteContent(content: any): Promise<void> {
+    try {
+      const docRef = doc(db, 'settings', 'siteContent');
+      await setDoc(docRef, content, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'settings/siteContent');
     }
   },
 

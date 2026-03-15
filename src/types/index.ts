@@ -35,6 +35,17 @@ export interface Product {
   featured?: boolean;
   rating?: number;
   reviewsCount?: number;
+  discountPrice?: number;
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  minPurchase?: number;
+  expiryDate?: string;
+  active: boolean;
 }
 
 export interface OrderStatusLog {
@@ -52,6 +63,8 @@ export interface Order {
     quantity: number;
   }[];
   totalAmount: number;
+  discountAmount?: number;
+  promoCode?: string;
   paymentMethod: 'bkash' | 'nagad';
   paymentNumber: string;
   transactionId: string;

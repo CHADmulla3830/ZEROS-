@@ -10,7 +10,12 @@ interface CartProps {
 }
 
 export const Cart: React.FC<CartProps> = ({ items, onClose, onRemove, onCheckout }) => {
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const total = items.reduce((sum, item) => {
+    const price = item.product.discountPrice && item.product.discountPrice < item.product.price 
+      ? item.product.discountPrice 
+      : item.product.price;
+    return sum + price * item.quantity;
+  }, 0);
 
   return (
     <div className="fixed inset-0 z-[80] flex justify-end">
@@ -54,7 +59,16 @@ export const Cart: React.FC<CartProps> = ({ items, onClose, onRemove, onCheckout
                   <h3 className="font-bold text-gray-900 line-clamp-1">{item.product.name}</h3>
                   <p className="text-sm text-gray-500">{item.product.category}</p>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="font-bold text-indigo-600">৳{item.product.price} x {item.quantity}</span>
+                    <div className="flex flex-col">
+                      {item.product.discountPrice && item.product.discountPrice < item.product.price ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-indigo-600">৳{item.product.discountPrice} x {item.quantity}</span>
+                          <span className="text-xs text-gray-400 line-through">৳{item.product.price}</span>
+                        </div>
+                      ) : (
+                        <span className="font-bold text-indigo-600">৳{item.product.price} x {item.quantity}</span>
+                      )}
+                    </div>
                     <button 
                       onClick={() => onRemove(item.product.id)}
                       className="text-gray-400 hover:text-red-500 transition-colors"
@@ -81,6 +95,10 @@ export const Cart: React.FC<CartProps> = ({ items, onClose, onRemove, onCheckout
               Proceed to Checkout
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
+            <div className="mt-4 flex items-center justify-center gap-4 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="h-5 object-contain" alt="bKash" />
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="h-5 object-contain" alt="Nagad" />
+            </div>
           </div>
         )}
       </div>

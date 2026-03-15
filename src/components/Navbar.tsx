@@ -37,8 +37,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               ZEROS'
             </span>
             <div className="flex items-center gap-1.5 ml-1">
-              <div className="w-5 h-5 bg-[#E2136E] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-sm" title="bKash Supported">b</div>
-              <div className="w-5 h-5 bg-[#F7941D] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-sm" title="Nagad Supported">n</div>
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="w-6 h-6 object-contain" alt="bKash" title="bKash Supported" />
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="w-6 h-6 object-contain" alt="Nagad" title="Nagad Supported" />
             </div>
           </div>
 

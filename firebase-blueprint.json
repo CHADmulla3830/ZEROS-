@@ -34,9 +34,25 @@
         "stock": { "type": "integer" },
         "featured": { "type": "boolean" },
         "rating": { "type": "number" },
-        "reviewsCount": { "type": "integer" }
+        "reviewsCount": { "type": "integer" },
+        "discountPrice": { "type": "number" }
       },
       "required": ["name", "price", "category"]
+    },
+    "PromoCode": {
+      "title": "PromoCode",
+      "description": "Discount promo code",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed"] },
+        "value": { "type": "number" },
+        "minPurchase": { "type": "number" },
+        "expiryDate": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["code", "type", "value", "active"]
     },
     "Review": {
       "title": "Review",
@@ -63,6 +79,8 @@
         "userId": { "type": "string" },
         "items": { "type": "array" },
         "totalAmount": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "promoCode": { "type": "string" },
         "paymentMethod": { "type": "string", "enum": ["bkash", "nagad"] },
         "paymentNumber": { "type": "string" },
         "transactionId": { "type": "string" },
@@ -70,6 +88,19 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "items", "totalAmount", "paymentMethod", "paymentNumber", "status"]
+    },
+    "SiteContent": {
+      "title": "SiteContent",
+      "description": "General site content like Contact Us and Refund Policy",
+      "type": "object",
+      "properties": {
+        "contactUs": { "type": "string" },
+        "refundPolicy": { "type": "string" },
+        "privacyPolicy": { "type": "string" },
+        "termsOfService": { "type": "string" },
+        "faq": { "type": "string" }
+      },
+      "required": ["contactUs", "refundPolicy"]
     }
   },
   "firestore": {
@@ -81,6 +112,10 @@
       "schema": "Product",
       "description": "Available products"
     },
+    "/promoCodes/{promoId}": {
+      "schema": "PromoCode",
+      "description": "Promo codes"
+    },
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Customer orders"
@@ -88,6 +123,10 @@
     "/reviews/{reviewId}": {
       "schema": "Review",
       "description": "Product reviews"
+    },
+    "/settings/siteContent": {
+      "schema": "SiteContent",
+      "description": "Global site content settings"
     }
   }
 }

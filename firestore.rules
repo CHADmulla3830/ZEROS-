@@ -99,7 +99,18 @@ service cloud.firestore {
              (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 1000)) &&
              (!('rating' in data) || (data.rating is number)) &&
-             (!('reviewsCount' in data) || (data.reviewsCount is number));
+             (!('reviewsCount' in data) || (data.reviewsCount is number)) &&
+             (!('discountPrice' in data) || (data.discountPrice is number && data.discountPrice >= 0));
+    }
+
+    function isValidPromoCode(data) {
+      return data.keys().hasAll(['code', 'type', 'value', 'active']) &&
+             data.code is string && data.code.size() < 50 &&
+             data.type in ['percentage', 'fixed'] &&
+             data.value is number && data.value > 0 &&
+             data.active is bool &&
+             (!('minPurchase' in data) || (data.minPurchase is number)) &&
+             (!('expiryDate' in data) || (data.expiryDate is string));
     }
 
     function isValidReview(data) {
@@ -122,6 +133,15 @@ service cloud.firestore {
              data.paymentNumber is string && data.paymentNumber.size() < 20 &&
              data.createdAt is string &&
              data.items is list;
+    }
+
+    function isValidSiteContent(data) {
+      return data.keys().hasAll(['contactUs', 'refundPolicy']) &&
+             data.contactUs is string && data.contactUs.size() < 5000 &&
+             data.refundPolicy is string && data.refundPolicy.size() < 10000 &&
+             (!('privacyPolicy' in data) || (data.privacyPolicy is string && data.privacyPolicy.size() < 10000)) &&
+             (!('termsOfService' in data) || (data.termsOfService is string && data.termsOfService.size() < 10000)) &&
+             (!('faq' in data) || (data.faq is string && data.faq.size() < 10000));
     }
 
     // Rules
@@ -150,6 +170,16 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidOrder(request.resource.data);
       allow update: if isAdmin() || (isOwner(resource.data.userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending');
       allow delete: if isAdmin();
+    }
+
+    match /promoCodes/{promoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidPromoCode(request.resource.data);
+    }
+
+    match /settings/siteContent {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidSiteContent(request.resource.data);
     }
   }
 }
