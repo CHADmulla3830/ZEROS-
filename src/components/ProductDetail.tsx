@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Review, UserProfile } from '../types';
 import { ProductService } from '../services/productService';
-import { X, Star, ShoppingCart, Heart, Send, Loader2, Calendar, ShieldCheck, Zap } from 'lucide-react';
+import { X, Star, ShoppingCart, Heart, Send, Loader2, Calendar, ShieldCheck, Zap, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProductDetailProps {
@@ -55,6 +55,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       setReviews(updatedReviews);
     } finally {
       setIsSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      await ProductService.deleteReview(reviewId, product.id);
+      const updatedReviews = await ProductService.getReviews(product.id);
+      setReviews(updatedReviews);
+    } catch (error) {
+      console.error("Failed to delete review:", error);
     }
   };
 
@@ -213,7 +223,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                       <div className="flex-grow">
                         <div className="flex justify-between items-start mb-1">
                           <h4 className="text-sm font-bold text-gray-900">{review.userName}</h4>
-                          <span className="text-[10px] text-gray-400 font-medium">{format(new Date(review.createdAt), 'MMM dd, yyyy')}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] text-gray-400 font-medium">{format(new Date(review.createdAt), 'MMM dd, yyyy')}</span>
+                            {user && (user.uid === review.userId || user.role === 'admin') && (
+                              <button 
+                                onClick={() => handleDeleteReview(review.id)}
+                                className="text-gray-400 hover:text-red-500 transition-colors"
+                                title="Delete Review"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-1 mb-2">
                           {[1, 2, 3, 4, 5].map((star) => (

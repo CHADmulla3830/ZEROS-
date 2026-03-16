@@ -237,6 +237,42 @@ export const ProductService = {
     }
   },
 
+  async deleteReview(reviewId: string, productId: string): Promise<void> {
+    try {
+      const reviewRef = doc(db, 'reviews', reviewId);
+      const reviewSnap = await getDoc(reviewRef);
+      if (!reviewSnap.exists()) return;
+      const reviewData = reviewSnap.data() as Review;
+
+      await deleteDoc(reviewRef);
+
+      // Update product rating
+      const productRef = doc(db, 'products', productId);
+      const productSnap = await getDoc(productRef);
+      if (productSnap.exists()) {
+        const productData = productSnap.data() as Product;
+        const currentCount = productData.reviewsCount || 0;
+        const currentRating = productData.rating || 0;
+        
+        if (currentCount > 1) {
+          const newCount = currentCount - 1;
+          const newRating = ((currentRating * currentCount) - reviewData.rating) / newCount;
+          await updateDoc(productRef, {
+            rating: Number(newRating.toFixed(1)),
+            reviewsCount: newCount
+          });
+        } else {
+          await updateDoc(productRef, {
+            rating: 0,
+            reviewsCount: 0
+          });
+        }
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `reviews/${reviewId}`);
+    }
+  },
+
   async getSiteContent(): Promise<any> {
     try {
       const docRef = doc(db, 'settings', 'siteContent');
