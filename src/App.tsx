@@ -10,6 +10,8 @@ import { ProductDetail } from './components/ProductDetail';
 import { Product, UserProfile } from './types';
 import { ProductService } from './services/productService';
 import { AuthService } from './services/authService';
+import { db } from './lib/firebase';
+import { doc, getDocFromServer } from 'firebase/firestore';
 import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, Sparkles, X } from 'lucide-react';
 
 export default function App() {
@@ -41,16 +43,32 @@ export default function App() {
   const [activePolicy, setActivePolicy] = useState<'contact' | 'refund' | 'privacy' | 'terms' | 'faq' | null>(null);
 
   useEffect(() => {
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, 'settings', 'siteContent'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. The client is offline.");
+        }
+      }
+    };
+
     const init = async () => {
-      await ProductService.seedProducts();
-      const [allProducts, content] = await Promise.all([
-        ProductService.getAllProducts(),
-        ProductService.getSiteContent()
-      ]);
-      setProducts(allProducts);
-      setFilteredProducts(allProducts);
-      if (content) setSiteContent(content);
-      setIsLoading(false);
+      try {
+        await testConnection();
+        await ProductService.seedProducts();
+        const [allProducts, content] = await Promise.all([
+          ProductService.getAllProducts(),
+          ProductService.getSiteContent()
+        ]);
+        setProducts(allProducts);
+        setFilteredProducts(allProducts);
+        if (content) setSiteContent(content);
+      } catch (error) {
+        console.error('Initialization failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     init();

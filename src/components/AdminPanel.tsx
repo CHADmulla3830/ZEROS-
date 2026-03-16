@@ -36,6 +36,10 @@ export const AdminPanel: React.FC = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('All');
 
+  // Sorting
+  const [productSortBy, setProductSortBy] = useState<string>('newest');
+  const [orderSortBy, setOrderSortBy] = useState<string>('newest');
+
   // Form State
   const [productForm, setProductForm] = useState<Omit<Product, 'id'>>({
     name: '',
@@ -223,6 +227,22 @@ export const AdminPanel: React.FC = () => {
     return statusMatch && paymentMatch;
   });
 
+  const sortedProducts = [...products].sort((a, b) => {
+    if (productSortBy === 'price-low') return a.price - b.price;
+    if (productSortBy === 'price-high') return b.price - a.price;
+    if (productSortBy === 'popularity') return b.popularity - a.popularity;
+    if (productSortBy === 'newest') return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+    return 0;
+  });
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    if (orderSortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (orderSortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (orderSortBy === 'amount-high') return b.totalAmount - a.totalAmount;
+    if (orderSortBy === 'amount-low') return a.totalAmount - b.totalAmount;
+    return 0;
+  });
+
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
 
   return (
@@ -259,14 +279,26 @@ export const AdminPanel: React.FC = () => {
 
       {activeTab === 'products' ? (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <h2 className="text-xl font-bold">Manage Products</h2>
-            <button 
-              onClick={() => setIsAddingProduct(true)}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all"
-            >
-              <Plus className="w-4 h-4" /> Add Product
-            </button>
+            <div className="flex items-center gap-4">
+              <select 
+                value={productSortBy}
+                onChange={(e) => setProductSortBy(e.target.value)}
+                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="newest">Newest First</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="popularity">Popularity</option>
+              </select>
+              <button 
+                onClick={() => setIsAddingProduct(true)}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all"
+              >
+                <Plus className="w-4 h-4" /> Add Product
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -280,7 +312,7 @@ export const AdminPanel: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {products.map(p => (
+                {sortedProducts.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 flex items-center gap-3">
                       <img src={p.imageUrl} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
@@ -346,7 +378,17 @@ export const AdminPanel: React.FC = () => {
               <Filter className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Filters:</span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <select 
+                value={orderSortBy}
+                onChange={(e) => setOrderSortBy(e.target.value)}
+                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="amount-high">Amount: High to Low</option>
+                <option value="amount-low">Amount: Low to High</option>
+              </select>
               <select 
                 value={orderStatusFilter}
                 onChange={(e) => setOrderStatusFilter(e.target.value)}
@@ -374,7 +416,9 @@ export const AdminPanel: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                   <tr>
-                    <th className="px-6 py-4 font-bold">Order Details</th>
+                    <th className="px-6 py-4 font-bold">Order ID</th>
+                    <th className="px-6 py-4 font-bold">User ID</th>
+                    <th className="px-6 py-4 font-bold">Items</th>
                     <th className="px-6 py-4 font-bold">Payment</th>
                     <th className="px-6 py-4 font-bold">Amount</th>
                     <th className="px-6 py-4 font-bold">Status</th>
@@ -383,7 +427,7 @@ export const AdminPanel: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredOrders.map(o => (
+                  {sortedOrders.map(o => (
                     <tr key={o.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
@@ -392,9 +436,19 @@ export const AdminPanel: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
+                        <span className="text-xs font-mono text-gray-400" title={o.userId}>#{o.userId.slice(-6)}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col max-w-[150px]">
+                          <span className="text-xs font-bold text-gray-900 line-clamp-1">{o.items.map(i => i.name).join(', ')}</span>
+                          <span className="text-[10px] text-gray-500">{o.items.length} items</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="text-xs font-bold uppercase text-indigo-600">{o.paymentMethod}</span>
                           <span className="text-xs text-gray-500">{o.paymentNumber}</span>
+                          <span className="text-[10px] font-mono text-gray-400 mt-1">{o.transactionId}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-indigo-900">৳{o.totalAmount}</td>
@@ -425,9 +479,18 @@ export const AdminPanel: React.FC = () => {
                             <Eye className="w-4 h-4" />
                           </button>
                           <button 
+                            onClick={() => handleUpdateStatus(o.id, 'pending')} 
+                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all disabled:opacity-50"
+                            disabled={o.status === 'pending' || isActionLoading === o.id}
+                            title="Set to Pending"
+                          >
+                            {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                          </button>
+                          <button 
                             onClick={() => handleUpdateStatus(o.id, 'completed')} 
                             className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
                             disabled={o.status === 'completed' || isActionLoading === o.id}
+                            title="Set to Completed"
                           >
                             {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                           </button>
@@ -435,6 +498,7 @@ export const AdminPanel: React.FC = () => {
                             onClick={() => handleUpdateStatus(o.id, 'cancelled')} 
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
                             disabled={o.status === 'cancelled' || isActionLoading === o.id}
+                            title="Set to Cancelled"
                           >
                             {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                           </button>
@@ -831,7 +895,10 @@ export const AdminPanel: React.FC = () => {
             <div className="flex justify-between items-center mb-8">
               <div>
                 <h2 className="text-2xl font-bold">Order Details</h2>
-                <p className="text-xs font-mono text-gray-400 mt-1">ID: {selectedOrder.id}</p>
+                <div className="flex flex-col gap-1 mt-1">
+                  <p className="text-xs font-mono text-gray-400">Order ID: {selectedOrder.id}</p>
+                  <p className="text-xs font-mono text-gray-400">User ID: {selectedOrder.userId}</p>
+                </div>
               </div>
               <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full transition-all">
                 <X className="w-6 h-6" />

@@ -287,7 +287,11 @@ export const ProductService = {
           termsOfService: "By using our site, you agree...",
           faq: "Frequently Asked Questions..."
         };
-        await setDoc(docRef, defaultContent);
+        try {
+          await setDoc(docRef, defaultContent);
+        } catch (e) {
+          console.log("Failed to set default site content (likely permissions):", e);
+        }
         return defaultContent;
       }
     } catch (error) {
