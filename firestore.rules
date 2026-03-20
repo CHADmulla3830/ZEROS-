@@ -142,17 +142,21 @@ service cloud.firestore {
     function isValidOrder(data) {
       return data.keys().hasAll(['userId', 'items', 'totalAmount', 'paymentMethod', 'paymentNumber', 'status', 'transactionId', 'createdAt']) &&
              data.userId == request.auth.uid &&
-             data.totalAmount is number && data.totalAmount > 0 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
              data.paymentMethod in ['bkash', 'nagad'] &&
              data.status in ['pending', 'completed', 'cancelled', 'cancellation_requested', 'cancellation_approved', 'cancellation_rejected'] &&
-             data.transactionId is string && data.transactionId.size() == 10 &&
+             data.transactionId is string && data.transactionId.size() >= 8 && data.transactionId.size() <= 50 &&
              data.paymentNumber is string && data.paymentNumber.matches('^01[3-9]\\d{8}$') &&
              data.createdAt is string &&
              data.items is list &&
              (!('userName' in data) || data.userName is string) &&
              (!('userEmail' in data) || data.userEmail is string) &&
              (!('userPhone' in data) || data.userPhone is string) &&
-             (!('cancellationReason' in data) || data.cancellationReason is string);
+             (!('cancellationReason' in data) || data.cancellationReason is string) &&
+             (!('cancellationRejectionReason' in data) || data.cancellationRejectionReason is string) &&
+             (!('discountAmount' in data) || data.discountAmount is number) &&
+             (!('promoCode' in data) || data.promoCode is string || data.promoCode == null) &&
+             (!('statusLog' in data) || data.statusLog is list);
     }
 
     function isValidSiteContent(data) {
@@ -175,7 +179,7 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create: if isAdmin() && isValidProduct(request.resource.data);
-      allow update: if (isAdmin() && isValidProduct(request.resource.data)) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewsCount', 'stock']));
+      allow update: if (isAdmin() && isValidProduct(request.resource.data)) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewsCount', 'stock', 'versions']));
       allow delete: if isAdmin();
     }
 
