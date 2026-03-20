@@ -4,13 +4,14 @@ import { Product, Order, PromoCode } from '../types';
 import { ProductService } from '../services/productService';
 
 interface CheckoutProps {
-  items: { product: Product; quantity: number }[];
+  items: { product: Product; quantity: number; version?: string }[];
   userId: string;
+  paymentInstructions?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSuccess }) => {
+export const Checkout: React.FC<CheckoutProps> = ({ items, userId, paymentInstructions, onClose, onSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState<'bkash' | 'nagad'>('bkash');
   const [paymentNumber, setPaymentNumber] = useState('');
   const [transactionId, setTransactionId] = useState('');
@@ -22,11 +23,18 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [promoError, setPromoError] = useState('');
+  const [formError, setFormError] = useState('');
 
   const subtotal = items.reduce((sum, item) => {
-    const price = item.product.discountPrice && item.product.discountPrice < item.product.price 
+    let price = item.product.discountPrice && item.product.discountPrice < item.product.price 
       ? item.product.discountPrice 
       : item.product.price;
+    
+    if (item.version && item.product.versions) {
+      const v = item.product.versions.find(v => v.name === item.version);
+      if (v) price = v.price;
+    }
+    
     return sum + price * item.quantity;
   }, 0);
 
@@ -47,7 +55,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
     setIsValidatingPromo(true);
     setPromoError('');
     try {
-      const promo = await ProductService.validatePromoCode(promoInput.trim().toUpperCase());
+      const promo = await ProductService.validatePromoCode(promoInput.trim().toUpperCase(), userId);
       if (promo) {
         if (promo.minPurchase && subtotal < promo.minPurchase) {
           setPromoError(`Minimum purchase of ৳${promo.minPurchase} required`);
@@ -67,20 +75,46 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paymentNumber || !transactionId) return;
+    setFormError('');
+
+    if (!paymentNumber || !transactionId) {
+      setFormError('Please fill in all payment details');
+      return;
+    }
+
+    // Basic validation for Bangladesh phone numbers (11 digits starting with 01)
+    if (!/^01[3-9]\d{8}$/.test(paymentNumber)) {
+      setFormError('Please enter a valid 11-digit phone number');
+      return;
+    }
+
+    if (transactionId.length < 8) {
+      setFormError('Please enter a valid Transaction ID');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      await ProductService.createOrder({
+      const orderId = await ProductService.createOrder({
         userId,
-        items: items.map(i => ({
-          productId: i.product.id,
-          name: i.product.name,
-          price: i.product.discountPrice && i.product.discountPrice < i.product.price 
+        items: items.map(i => {
+          let price = i.product.discountPrice && i.product.discountPrice < i.product.price 
             ? i.product.discountPrice 
-            : i.product.price,
-          quantity: i.quantity
-        })),
+            : i.product.price;
+          
+          if (i.version && i.product.versions) {
+            const v = i.product.versions.find(v => v.name === i.version);
+            if (v) price = v.price;
+          }
+
+          return {
+            productId: i.product.id,
+            name: i.product.name,
+            price,
+            quantity: i.quantity,
+            version: i.version
+          };
+        }),
         totalAmount: total,
         discountAmount: discountAmount || 0,
         promoCode: appliedPromo?.code || null,
@@ -89,6 +123,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
         transactionId,
         status: 'pending'
       });
+
+      if (appliedPromo) {
+        await ProductService.trackPromoUsage(appliedPromo.id, userId);
+      }
+
       setStep('success');
     } catch (error) {
       console.error("Order error:", error);
@@ -126,15 +165,23 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
         <div className="p-8 md:w-5/12 bg-gray-50 border-r border-gray-100 overflow-y-auto max-h-[90vh]">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
           <div className="space-y-4 mb-6">
-            {items.map((item) => {
-              const price = item.product.discountPrice && item.product.discountPrice < item.product.price 
+            {items.map((item, idx) => {
+              let price = item.product.discountPrice && item.product.discountPrice < item.product.price 
                 ? item.product.discountPrice 
                 : item.product.price;
+              
+              if (item.version && item.product.versions) {
+                const v = item.product.versions.find(v => v.name === item.version);
+                if (v) price = v.price;
+              }
+
               return (
-                <div key={item.product.id} className="flex justify-between text-sm">
+                <div key={`${item.product.id}-${item.version || idx}`} className="flex justify-between text-sm">
                   <div className="flex flex-col">
-                    <span className="text-gray-600 font-medium">{item.product.name} x {item.quantity}</span>
-                    {item.product.discountPrice && item.product.discountPrice < item.product.price && (
+                    <span className="text-gray-600 font-medium">
+                      {item.product.name} {item.version ? `(${item.version})` : ''} x {item.quantity}
+                    </span>
+                    {item.product.discountPrice && item.product.discountPrice < item.product.price && !item.version && (
                       <span className="text-[10px] text-emerald-600 font-bold uppercase">Discount Applied</span>
                     )}
                   </div>
@@ -207,11 +254,15 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
               <CreditCard className="w-4 h-4" />
               Payment Instructions
             </h3>
-            <p className="text-xs text-indigo-700 leading-relaxed">
-              1. Send Money to <b>017XX-XXXXXX</b> (Personal)<br />
-              2. Use your Order ID as reference<br />
-              3. Enter the Transaction ID below
-            </p>
+            <div className="text-xs text-indigo-700 leading-relaxed whitespace-pre-wrap">
+              {paymentInstructions || (
+                <>
+                  1. Send Money to <b>01700-000000</b> (Personal)<br />
+                  2. Use your Phone Number as reference<br />
+                  3. Enter the Transaction ID below
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -232,7 +283,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
                     paymentMethod === 'bkash' ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-gray-100 hover:border-pink-200'
                   }`}
                 >
-                  <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="w-6 h-6 object-contain" alt="bKash" />
+                  <img src="https://www.logo.wine/a/logo/BKash/BKash-Icon-Logo.wine.svg" className="w-6 h-6 object-contain" alt="bKash" />
                   bKash
                 </button>
                 <button 
@@ -242,7 +293,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
                     paymentMethod === 'nagad' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-100 hover:border-orange-200'
                   }`}
                 >
-                  <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="w-6 h-6 object-contain" alt="Nagad" />
+                  <img src="https://www.logo.wine/a/logo/Nagad/Nagad-Vertical-Logo.wine.svg" className="w-6 h-6 object-contain" alt="Nagad" />
                   Nagad
                 </button>
               </div>
@@ -271,6 +322,12 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, onClose, onSu
                 className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-indigo-500 transition-all outline-none"
               />
             </div>
+
+            {formError && (
+              <p className="text-xs font-bold text-red-500 uppercase bg-red-50 p-3 rounded-xl border border-red-100">
+                {formError}
+              </p>
+            )}
 
             <div className="pt-4">
               <button 

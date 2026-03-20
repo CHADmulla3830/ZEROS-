@@ -13,7 +13,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Order, Review, PromoCode } from '../types';
+import { Product, Order, Review, PromoCode, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 
 export const ProductService = {
@@ -42,9 +42,7 @@ export const ProductService = {
     try {
       const now = new Date().toISOString();
       // Remove undefined fields to prevent Firestore errors
-      const cleanData = Object.fromEntries(
-        Object.entries(orderData).filter(([_, v]) => v !== undefined)
-      );
+      const cleanData = JSON.parse(JSON.stringify(orderData));
       
       const docRef = await addDoc(collection(db, 'orders'), {
         ...cleanData,
@@ -52,10 +50,160 @@ export const ProductService = {
         status: 'pending',
         statusLog: [{ status: 'pending', timestamp: now }]
       });
+
+      // Decrement stock for each item
+      for (const item of orderData.items) {
+        const productRef = doc(db, 'products', item.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const product = productSnap.data() as Product;
+          if (item.version && product.versions) {
+            const updatedVersions = product.versions.map(v => 
+              v.name === item.version ? { ...v, stock: Math.max(0, v.stock - item.quantity) } : v
+            );
+            await updateDoc(productRef, { versions: updatedVersions });
+          } else {
+            await updateDoc(productRef, { stock: Math.max(0, (product.stock || 0) - item.quantity) });
+          }
+        }
+      }
+
       return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'orders');
       return '';
+    }
+  },
+
+  async requestOrderCancellation(orderId: string, reason: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'orders', orderId);
+      const now = new Date().toISOString();
+      await updateDoc(docRef, {
+        status: 'cancellation_requested',
+        cancellationReason: reason,
+        statusLog: arrayUnion({ status: 'cancellation_requested', timestamp: now })
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+    }
+  },
+
+  async confirmOrderCancellation(orderId: string, approved: boolean, rejectionReason?: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'orders', orderId);
+      const now = new Date().toISOString();
+      const status = approved ? 'cancelled' : 'pending'; // Revert to pending if rejected
+      const logStatus = approved ? 'cancellation_approved' : 'cancellation_rejected';
+      
+      const updateData: any = {
+        status: approved ? 'cancellation_approved' : 'cancellation_rejected',
+        statusLog: arrayUnion({ status: logStatus, timestamp: now })
+      };
+
+      if (!approved && rejectionReason) {
+        updateData.cancellationRejectionReason = rejectionReason;
+      }
+      
+      await updateDoc(docRef, updateData);
+
+      // If approved, increment stock back
+      if (approved) {
+        const orderSnap = await getDoc(docRef);
+        if (orderSnap.exists()) {
+          const order = orderSnap.data() as Order;
+          for (const item of order.items) {
+            const productRef = doc(db, 'products', item.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              const product = productSnap.data() as Product;
+              if (item.version && product.versions) {
+                const updatedVersions = product.versions.map(v => 
+                  v.name === item.version ? { ...v, stock: v.stock + item.quantity } : v
+                );
+                await updateDoc(productRef, { versions: updatedVersions });
+              } else {
+                await updateDoc(productRef, { stock: (product.stock || 0) + item.quantity });
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+    }
+  },
+
+  async getAdmins(): Promise<UserProfile[]> {
+    try {
+      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor']));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.data() as UserProfile);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+      return [];
+    }
+  },
+
+  async getUsers(): Promise<UserProfile[]> {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      return querySnapshot.docs.map(doc => doc.data() as UserProfile);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+      return [];
+    }
+  },
+
+  async updateAdminRole(uid: string, role: UserProfile['role']): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', uid);
+      await updateDoc(docRef, { role });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+    }
+  },
+
+  async validatePromoCode(code: string, userId?: string): Promise<PromoCode | null> {
+    try {
+      const q = query(collection(db, 'promoCodes'), where('code', '==', code), where('active', '==', true));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) return null;
+      const promo = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as PromoCode;
+      
+      // Check expiry
+      if (promo.expiryDate && new Date(promo.expiryDate) < new Date()) return null;
+      
+      // Check usage limit per user
+      if (promo.usageLimitPerUser && userId) {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as UserProfile;
+          const usageCount = (userData.promoUsage && userData.promoUsage[promo.id]) || 0;
+          if (usageCount >= promo.usageLimitPerUser) return null;
+        }
+      }
+      
+      return promo;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, 'promoCodes/validate');
+      return null;
+    }
+  },
+
+  async trackPromoUsage(promoId: string, userId: string): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data() as UserProfile;
+        const currentUsage = userData.promoUsage || {};
+        const newUsage = { ...currentUsage, [promoId]: (currentUsage[promoId] || 0) + 1 };
+        await updateDoc(userRef, { promoUsage: newUsage });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }
   },
 
@@ -100,8 +248,9 @@ export const ProductService = {
 
   async updateProduct(id: string, data: Partial<Product>): Promise<void> {
     try {
+      const cleanData = JSON.parse(JSON.stringify(data));
       const docRef = doc(db, 'products', id);
-      await setDoc(docRef, data, { merge: true });
+      await setDoc(docRef, cleanData, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `products/${id}`);
     }
@@ -137,7 +286,8 @@ export const ProductService = {
 
   async addPromoCode(data: Omit<PromoCode, 'id'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'promoCodes'), data);
+      const cleanData = JSON.parse(JSON.stringify(data));
+      const docRef = await addDoc(collection(db, 'promoCodes'), cleanData);
       return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'promoCodes');
@@ -147,8 +297,9 @@ export const ProductService = {
 
   async updatePromoCode(id: string, data: Partial<PromoCode>): Promise<void> {
     try {
+      const cleanData = JSON.parse(JSON.stringify(data));
       const docRef = doc(db, 'promoCodes', id);
-      await updateDoc(docRef, data);
+      await updateDoc(docRef, cleanData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `promoCodes/${id}`);
     }
@@ -163,27 +314,13 @@ export const ProductService = {
     }
   },
 
-  async validatePromoCode(code: string): Promise<PromoCode | null> {
-    try {
-      const q = query(collection(db, 'promoCodes'), where('code', '==', code), where('active', '==', true));
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) return null;
-      const promo = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as PromoCode;
-      
-      // Check expiry
-      if (promo.expiryDate && new Date(promo.expiryDate) < new Date()) return null;
-      
-      return promo;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, 'promoCodes/validate');
-      return null;
-    }
-  },
+
 
   async addProduct(data: Omit<Product, 'id'>): Promise<string> {
     try {
+      const cleanData = JSON.parse(JSON.stringify(data));
       const docRef = await addDoc(collection(db, 'products'), {
-        ...data,
+        ...cleanData,
         rating: 0,
         reviewsCount: 0
       });
@@ -212,8 +349,9 @@ export const ProductService = {
   async addReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<void> {
     try {
       const now = new Date().toISOString();
+      const cleanData = JSON.parse(JSON.stringify(review));
       await addDoc(collection(db, 'reviews'), {
-        ...review,
+        ...cleanData,
         createdAt: now
       });
 
@@ -270,6 +408,23 @@ export const ProductService = {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `reviews/${reviewId}`);
+    }
+  },
+
+  async getRelatedProducts(productId: string, genre: string): Promise<Product[]> {
+    try {
+      const q = query(
+        collection(db, 'products'),
+        where('genre', '==', genre)
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+        .filter(p => p.id !== productId)
+        .slice(0, 4);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'products');
+      return [];
     }
   },
 

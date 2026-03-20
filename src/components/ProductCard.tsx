@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
-import { ShoppingCart, Plus, Heart, Star, Loader2 } from 'lucide-react';
+import { ShoppingCart, Plus, Heart, Star, Loader2, Eye } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -57,6 +57,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <Heart className={`w-5 h-5 ${isInWishlist ? 'fill-current' : ''}`} />
             </button>
           )}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick?.(product);
+            }}
+            className="p-2 rounded-xl bg-white/80 text-gray-400 hover:text-indigo-600 hover:bg-white backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
+            title="Quick View"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
         </div>
         {product.featured && (
           <div className="absolute top-4 left-4 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg">
@@ -88,7 +98,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div>
             <span className="text-xs text-gray-400 block">Price</span>
             <div className="flex items-center gap-2">
-              {product.discountPrice && product.discountPrice < product.price ? (
+              {product.priceRange ? (
+                <span className="text-xl font-bold text-gray-900">৳{product.priceRange.min} - ৳{product.priceRange.max}</span>
+              ) : product.discountPrice && product.discountPrice < product.price ? (
                 <>
                   <span className="text-xl font-bold text-gray-900">৳{product.discountPrice}</span>
                   <span className="text-xs text-gray-400 line-through">৳{product.price}</span>

@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Sparkles, Search, Tag, Percent } from 'lucide-react';
-import { Product, Order, PromoCode } from '../types';
+import { Product, Order, PromoCode, UserProfile, UserRole } from '../types';
 import { ProductService } from '../services/productService';
 import { AiService } from '../services/aiService';
 import { format } from 'date-fns';
 
-export const AdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'site' | 'promo'>('products');
+interface AdminPanelProps {
+  currentUser: UserProfile | null;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'site' | 'promo' | 'users'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [siteContent, setSiteContent] = useState({ 
     contactUs: '', 
     refundPolicy: '',
     privacyPolicy: '',
     termsOfService: '',
-    faq: ''
+    faq: '',
+    paymentInstructions: ''
   });
   const [isLoading, setIsLoading] = useState(true);
   
@@ -26,6 +32,14 @@ export const AdminPanel: React.FC = () => {
   const [isAddingPromo, setIsAddingPromo] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: 'product' | 'order' | 'promo' } | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+
+  // Search States
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 30;
 
   // AI Fetch State
   const [aiSearchQuery, setAiSearchQuery] = useState('');
@@ -46,6 +60,7 @@ export const AdminPanel: React.FC = () => {
     description: '',
     price: 0,
     discountPrice: 0,
+    priceRange: { min: 0, max: 0 },
     category: 'PC Games',
     genre: '',
     platform: 'PC',
@@ -54,7 +69,8 @@ export const AdminPanel: React.FC = () => {
     popularity: 50,
     imageUrl: '',
     stock: 0,
-    featured: false
+    featured: false,
+    versions: []
   });
 
   const [promoForm, setPromoForm] = useState<Omit<PromoCode, 'id'>>({
@@ -83,14 +99,16 @@ export const AdminPanel: React.FC = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [p, o, pr] = await Promise.all([
+    const [p, o, pr, u] = await Promise.all([
       ProductService.getAllProducts(),
       ProductService.getAllOrders(),
-      ProductService.getPromoCodes()
+      ProductService.getPromoCodes(),
+      ProductService.getUsers()
     ]);
     setProducts(p);
     setOrders(o);
     setPromoCodes(pr);
+    setUsers(u);
     setIsLoading(false);
   };
 
@@ -116,10 +134,30 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (orderId: string, status: Order['status']) => {
+  const handleUpdateStatus = async (orderId: string, status: Order['status'], approved?: boolean, reason?: string) => {
     setIsActionLoading(orderId);
     try {
-      await ProductService.updateOrderStatus(orderId, status);
+      if (status === 'cancellation_approved' || status === 'cancellation_rejected') {
+        await ProductService.confirmOrderCancellation(orderId, approved!, reason);
+      } else {
+        await ProductService.updateOrderStatus(orderId, status);
+      }
+      await fetchData();
+      if (selectedOrder?.id === orderId) {
+        const updatedOrder = (await ProductService.getAllOrders()).find(o => o.id === orderId);
+        if (updatedOrder) setSelectedOrder(updatedOrder);
+      }
+    } finally {
+      setIsActionLoading(null);
+      setShowRejectionModal(false);
+      setRejectionReason('');
+    }
+  };
+
+  const handleUpdateUserRole = async (uid: string, role: UserRole) => {
+    setIsActionLoading(uid);
+    try {
+      await ProductService.updateAdminRole(uid, role);
       await fetchData();
     } finally {
       setIsActionLoading(null);
@@ -169,6 +207,7 @@ export const AdminPanel: React.FC = () => {
         description: '',
         price: 0,
         discountPrice: 0,
+        priceRange: { min: 0, max: 0 },
         category: 'PC Games',
         genre: '',
         platform: 'PC',
@@ -177,7 +216,8 @@ export const AdminPanel: React.FC = () => {
         popularity: 50,
         imageUrl: '',
         stock: 0,
-        featured: false
+        featured: false,
+        versions: []
       });
       await fetchData();
     } finally {
@@ -243,6 +283,10 @@ export const AdminPanel: React.FC = () => {
     return 0;
   });
 
+  const filteredAndSortedProducts = sortedProducts.filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()));
+  const totalProductPages = Math.ceil(filteredAndSortedProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = filteredAndSortedProducts.slice((productPage - 1) * PRODUCTS_PER_PAGE, productPage * PRODUCTS_PER_PAGE);
+
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
 
   return (
@@ -269,6 +313,12 @@ export const AdminPanel: React.FC = () => {
             Promo Codes
           </button>
           <button 
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Users
+          </button>
+          <button 
             onClick={() => setActiveTab('site')}
             className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'site' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
           >
@@ -280,11 +330,29 @@ export const AdminPanel: React.FC = () => {
       {activeTab === 'products' ? (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-            <h2 className="text-xl font-bold">Manage Products</h2>
+            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+              <h2 className="text-xl font-bold">Manage Products</h2>
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={productSearchQuery}
+                  onChange={(e) => {
+                    setProductSearchQuery(e.target.value);
+                    setProductPage(1);
+                  }}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
             <div className="flex items-center gap-4">
               <select 
                 value={productSortBy}
-                onChange={(e) => setProductSortBy(e.target.value)}
+                onChange={(e) => {
+                  setProductSortBy(e.target.value);
+                  setProductPage(1);
+                }}
                 className="bg-gray-50 border-none rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="newest">Newest First</option>
@@ -293,7 +361,26 @@ export const AdminPanel: React.FC = () => {
                 <option value="popularity">Popularity</option>
               </select>
               <button 
-                onClick={() => setIsAddingProduct(true)}
+                onClick={() => {
+                  setProductForm({
+                    name: '',
+                    description: '',
+                    price: 0,
+                    discountPrice: 0,
+                    priceRange: { min: 0, max: 0 },
+                    category: 'PC Games',
+                    genre: '',
+                    platform: 'PC',
+                    publisher: '',
+                    releaseDate: new Date().toISOString().split('T')[0],
+                    popularity: 50,
+                    imageUrl: '',
+                    stock: 0,
+                    featured: false,
+                    versions: []
+                  });
+                  setIsAddingProduct(true);
+                }}
                 className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all"
               >
                 <Plus className="w-4 h-4" /> Add Product
@@ -312,7 +399,7 @@ export const AdminPanel: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {sortedProducts.map(p => (
+                {paginatedProducts.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 flex items-center gap-3">
                       <img src={p.imageUrl} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
@@ -342,6 +429,7 @@ export const AdminPanel: React.FC = () => {
                               description: p.description,
                               price: p.price,
                               discountPrice: p.discountPrice || 0,
+                              priceRange: p.priceRange || { min: 0, max: 0 },
                               category: p.category,
                               genre: p.genre,
                               platform: p.platform,
@@ -350,7 +438,8 @@ export const AdminPanel: React.FC = () => {
                               popularity: p.popularity,
                               imageUrl: p.imageUrl,
                               stock: p.stock,
-                              featured: p.featured || false
+                              featured: p.featured || false,
+                              versions: p.versions || []
                             });
                           }}
                           className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -370,6 +459,29 @@ export const AdminPanel: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {totalProductPages > 1 && (
+            <div className="p-6 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-sm text-gray-500">
+                Showing {(productPage - 1) * PRODUCTS_PER_PAGE + 1} to {Math.min(productPage * PRODUCTS_PER_PAGE, filteredAndSortedProducts.length)} of {filteredAndSortedProducts.length} products
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                  disabled={productPage === 1}
+                  className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setProductPage(p => Math.min(totalProductPages, p + 1))}
+                  disabled={productPage === totalProductPages}
+                  className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : activeTab === 'orders' ? (
         <div className="space-y-6">
@@ -398,6 +510,9 @@ export const AdminPanel: React.FC = () => {
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="cancellation_requested">Cancellation Requested</option>
+                <option value="cancellation_approved">Cancellation Approved</option>
+                <option value="cancellation_rejected">Cancellation Rejected</option>
               </select>
               <select 
                 value={orderPaymentFilter}
@@ -440,7 +555,9 @@ export const AdminPanel: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col max-w-[150px]">
-                          <span className="text-xs font-bold text-gray-900 line-clamp-1">{o.items.map(i => i.name).join(', ')}</span>
+                          <span className="text-xs font-bold text-gray-900 line-clamp-1">
+                            {o.items.map(i => `${i.name}${i.version ? ` (${i.version})` : ''}`).join(', ')}
+                          </span>
                           <span className="text-[10px] text-gray-500">{o.items.length} items</span>
                         </div>
                       </td>
@@ -455,9 +572,13 @@ export const AdminPanel: React.FC = () => {
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           o.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 
-                          o.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'
+                          o.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
+                          o.status === 'cancellation_requested' ? 'bg-purple-100 text-purple-600' :
+                          o.status === 'cancellation_approved' ? 'bg-emerald-100 text-emerald-600' :
+                          o.status === 'cancellation_rejected' ? 'bg-red-100 text-red-600' :
+                          'bg-red-100 text-red-600'
                         }`}>
-                          {o.status}
+                          {o.status.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -478,30 +599,56 @@ export const AdminPanel: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(o.id, 'pending')} 
-                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all disabled:opacity-50"
-                            disabled={o.status === 'pending' || isActionLoading === o.id}
-                            title="Set to Pending"
-                          >
-                            {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(o.id, 'completed')} 
-                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
-                            disabled={o.status === 'completed' || isActionLoading === o.id}
-                            title="Set to Completed"
-                          >
-                            {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(o.id, 'cancelled')} 
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
-                            disabled={o.status === 'cancelled' || isActionLoading === o.id}
-                            title="Set to Cancelled"
-                          >
-                            {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                          </button>
+                          {o.status === 'cancellation_requested' ? (
+                            <>
+                              <button 
+                                onClick={() => handleUpdateStatus(o.id, 'cancellation_approved', true)} 
+                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all disabled:opacity-50 text-xs font-bold"
+                                disabled={isActionLoading === o.id}
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                                Accept
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setSelectedOrder(o);
+                                  setShowRejectionModal(true);
+                                }} 
+                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all disabled:opacity-50 text-xs font-bold"
+                                disabled={isActionLoading === o.id}
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button 
+                                onClick={() => handleUpdateStatus(o.id, 'pending')} 
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all disabled:opacity-50"
+                                disabled={o.status === 'pending' || isActionLoading === o.id}
+                                title="Set to Pending"
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateStatus(o.id, 'completed')} 
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
+                                disabled={o.status === 'completed' || isActionLoading === o.id}
+                                title="Set to Completed"
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateStatus(o.id, 'cancelled')} 
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                                disabled={o.status === 'cancelled' || isActionLoading === o.id}
+                                title="Set to Cancelled"
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                              </button>
+                            </>
+                          )}
                           <button 
                             onClick={() => setConfirmDelete({ id: o.id, type: 'order' })}
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
@@ -588,6 +735,86 @@ export const AdminPanel: React.FC = () => {
             </table>
           </div>
         </div>
+      ) : activeTab === 'users' ? (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+              <h2 className="text-xl font-bold">User Management</h2>
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-4 font-bold">User</th>
+                  <th className="px-6 py-4 font-bold">Email</th>
+                  <th className="px-6 py-4 font-bold">Role</th>
+                  <th className="px-6 py-4 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users
+                  .filter(u => 
+                    u.displayName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                    u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                  )
+                  .map(user => (
+                    <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {user.photoURL ? (
+                            <img src={user.photoURL} className="w-8 h-8 rounded-full" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                              {user.displayName?.[0] || user.email[0].toUpperCase()}
+                            </div>
+                          )}
+                          <span className="font-medium">{user.displayName || 'No Name'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
+                          user.role === 'super_admin' ? 'bg-purple-100 text-purple-600' :
+                          user.role === 'admin' ? 'bg-indigo-100 text-indigo-600' :
+                          user.role === 'editor' ? 'bg-blue-100 text-blue-600' :
+                          user.role === 'product_manager' ? 'bg-emerald-100 text-emerald-600' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {user.role || 'user'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <select
+                          value={user.role || 'user'}
+                          onChange={(e) => handleUpdateUserRole(user.uid, e.target.value as UserRole)}
+                          disabled={isActionLoading === user.uid}
+                          className="bg-gray-50 border-none rounded-lg px-2 py-1 text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                        >
+                          <option value="user">User</option>
+                          <option value="product_manager">Product Manager</option>
+                          <option value="manager">Manager</option>
+                          <option value="editor">Editor</option>
+                          <option value="admin">Admin</option>
+                          {currentUser?.role === 'super_admin' && <option value="super_admin">Super Admin</option>}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
           <h2 className="text-xl font-bold mb-8">Edit Site Content</h2>
@@ -627,6 +854,16 @@ export const AdminPanel: React.FC = () => {
                   value={siteContent.termsOfService}
                   onChange={e => setSiteContent({...siteContent, termsOfService: e.target.value})}
                   className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                />
+              </div>
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Payment Instructions</label>
+                <textarea 
+                  rows={4}
+                  value={siteContent.paymentInstructions}
+                  onChange={e => setSiteContent({...siteContent, paymentInstructions: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700"
+                  placeholder="Enter payment instructions for bKash/Nagad..."
                 />
               </div>
               <div className="space-y-4 md:col-span-2">
@@ -738,6 +975,82 @@ export const AdminPanel: React.FC = () => {
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Optional"
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Min Price Range (৳)</label>
+                  <input 
+                    type="number"
+                    value={productForm.priceRange?.min || 0}
+                    onChange={e => setProductForm({...productForm, priceRange: { ...productForm.priceRange!, min: parseFloat(e.target.value) || 0 }})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Max Price Range (৳)</label>
+                  <input 
+                    type="number"
+                    value={productForm.priceRange?.max || 0}
+                    onChange={e => setProductForm({...productForm, priceRange: { ...productForm.priceRange!, max: parseFloat(e.target.value) || 0 }})}
+                    className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Product Versions</label>
+                  <div className="space-y-3">
+                    {(productForm.versions || []).map((v, idx) => (
+                      <div key={idx} className="flex gap-3 items-center bg-gray-50 p-3 rounded-xl">
+                        <input 
+                          placeholder="Version Name (e.g. Standard)"
+                          value={v.name}
+                          onChange={e => {
+                            const newVersions = [...(productForm.versions || [])];
+                            newVersions[idx].name = e.target.value;
+                            setProductForm({...productForm, versions: newVersions});
+                          }}
+                          className="flex-1 bg-white border-none rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <input 
+                          type="number"
+                          placeholder="Price"
+                          value={v.price}
+                          onChange={e => {
+                            const newVersions = [...(productForm.versions || [])];
+                            newVersions[idx].price = parseFloat(e.target.value) || 0;
+                            setProductForm({...productForm, versions: newVersions});
+                          }}
+                          className="w-24 bg-white border-none rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <input 
+                          type="number"
+                          placeholder="Stock"
+                          value={v.stock}
+                          onChange={e => {
+                            const newVersions = [...(productForm.versions || [])];
+                            newVersions[idx].stock = parseInt(e.target.value) || 0;
+                            setProductForm({...productForm, versions: newVersions});
+                          }}
+                          className="w-20 bg-white border-none rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const newVersions = (productForm.versions || []).filter((_, i) => i !== idx);
+                            setProductForm({...productForm, versions: newVersions});
+                          }}
+                          className="text-red-500 hover:bg-red-50 p-1 rounded"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    <button 
+                      type="button"
+                      onClick={() => setProductForm({...productForm, versions: [...(productForm.versions || []), { name: '', price: 0, stock: 0 }]})}
+                      className="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline"
+                    >
+                      <Plus size={14} /> Add Version
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Stock</label>
@@ -912,7 +1225,7 @@ export const AdminPanel: React.FC = () => {
                   {selectedOrder.items.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center">
                       <div className="flex flex-col">
-                        <span className="font-bold text-sm">{item.name}</span>
+                        <span className="font-bold text-sm">{item.name} {item.version ? `(${item.version})` : ''}</span>
                         <span className="text-xs text-gray-500">Qty: {item.quantity} × ৳{item.price}</span>
                       </div>
                       <span className="font-bold text-indigo-600">৳{item.quantity * item.price}</span>
@@ -932,6 +1245,13 @@ export const AdminPanel: React.FC = () => {
                   <p className="font-mono text-xs font-bold text-gray-700">{selectedOrder.transactionId}</p>
                 </div>
               </div>
+
+              {selectedOrder.status === 'cancellation_rejected' && selectedOrder.cancellationRejectionReason && (
+                <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+                  <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">Cancellation Rejection Reason</h3>
+                  <p className="text-sm font-medium text-red-700">{selectedOrder.cancellationRejectionReason}</p>
+                </div>
+              )}
 
               <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                 <span className="text-lg font-bold">Total Amount</span>
@@ -967,6 +1287,46 @@ export const AdminPanel: React.FC = () => {
               >
                 {isActionLoading === 'delete' && <Loader2 className="w-4 h-4 animate-spin" />}
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Rejection Reason Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Reject Cancellation</h2>
+              <button onClick={() => setShowRejectionModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-500 mb-6 text-sm">
+              Please provide a reason for rejecting this cancellation request. This will be visible to the user.
+            </p>
+            <textarea
+              required
+              rows={4}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Reason for rejection..."
+              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-gray-700 mb-6"
+            />
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowRejectionModal(false)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleUpdateStatus(selectedOrder!.id, 'cancellation_rejected', false, rejectionReason)}
+                disabled={!rejectionReason.trim() || isActionLoading === selectedOrder?.id}
+                className="flex-1 px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isActionLoading === selectedOrder?.id && <Loader2 className="w-4 h-4 animate-spin" />}
+                Reject
               </button>
             </div>
           </div>

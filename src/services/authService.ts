@@ -56,8 +56,30 @@ export const AuthService = {
     }
   },
 
-  async logout() {
+  async signOut() {
     await signOut(auth);
+  },
+
+  async addToRecentlyViewed(uid: string, productId: string): Promise<string[]> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) return [];
+      
+      const userData = userDoc.data() as UserProfile;
+      const currentRecentlyViewed = userData.recentlyViewed || [];
+      
+      // Remove if already exists to move it to the front
+      const filtered = currentRecentlyViewed.filter(id => id !== productId);
+      const newRecentlyViewed = [productId, ...filtered].slice(0, 10); // Keep last 10
+      
+      await setDoc(userRef, { ...userData, recentlyViewed: newRecentlyViewed });
+      return newRecentlyViewed;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+      return [];
+    }
   },
 
   onAuthChange(callback: (user: User | null) => void) {

@@ -19,7 +19,7 @@ export const Hero: React.FC = () => {
           >
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-sm font-semibold mb-6">
               <Zap className="w-4 h-4" />
-              Instant Delivery in Bangladesh
+              Delivery within 2-48 hrs in Bangladesh
             </span>
             <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-gray-900 mb-8">
               ZEROS' <br />

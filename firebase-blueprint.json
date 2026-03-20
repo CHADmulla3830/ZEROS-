@@ -9,9 +9,10 @@
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
-        "role": { "type": "string", "enum": ["user", "admin"] },
+        "role": { "type": "string", "enum": ["user", "admin", "product_manager", "manager", "editor"] },
         "wishlist": { "type": "array", "items": { "type": "string" } },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "promoUsage": { "type": "object" }
       },
       "required": ["uid", "email", "role"]
     },
@@ -24,6 +25,7 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "price": { "type": "number" },
+        "priceRange": { "type": "object" },
         "category": { "type": "string" },
         "genre": { "type": "string" },
         "platform": { "type": "string" },
@@ -35,7 +37,9 @@
         "featured": { "type": "boolean" },
         "rating": { "type": "number" },
         "reviewsCount": { "type": "integer" },
-        "discountPrice": { "type": "number" }
+        "discountPrice": { "type": "number" },
+        "warranty": { "type": "string" },
+        "versions": { "type": "array" }
       },
       "required": ["name", "price", "category"]
     },
@@ -50,7 +54,8 @@
         "value": { "type": "number" },
         "minPurchase": { "type": "number" },
         "expiryDate": { "type": "string" },
-        "active": { "type": "boolean" }
+        "active": { "type": "boolean" },
+        "usageLimitPerUser": { "type": "integer" }
       },
       "required": ["code", "type", "value", "active"]
     },
@@ -77,6 +82,9 @@
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userPhone": { "type": "string" },
         "items": { "type": "array" },
         "totalAmount": { "type": "number" },
         "discountAmount": { "type": "number" },
@@ -84,8 +92,10 @@
         "paymentMethod": { "type": "string", "enum": ["bkash", "nagad"] },
         "paymentNumber": { "type": "string" },
         "transactionId": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "completed", "cancelled"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string", "enum": ["pending", "completed", "cancelled", "cancellation_requested", "cancellation_approved", "cancellation_rejected"] },
+        "statusLog": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "cancellationReason": { "type": "string" }
       },
       "required": ["userId", "items", "totalAmount", "paymentMethod", "paymentNumber", "status"]
     },
@@ -98,7 +108,8 @@
         "refundPolicy": { "type": "string" },
         "privacyPolicy": { "type": "string" },
         "termsOfService": { "type": "string" },
-        "faq": { "type": "string" }
+        "faq": { "type": "string" },
+        "paymentInstructions": { "type": "string" }
       },
       "required": ["contactUs", "refundPolicy"]
     }

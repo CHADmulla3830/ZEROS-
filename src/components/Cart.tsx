@@ -3,17 +3,23 @@ import { X, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { Product } from '../types';
 
 interface CartProps {
-  items: { product: Product; quantity: number }[];
+  items: { product: Product; quantity: number; version?: string }[];
   onClose: () => void;
-  onRemove: (productId: string) => void;
+  onRemove: (productId: string, version?: string) => void;
   onCheckout: () => void;
 }
 
 export const Cart: React.FC<CartProps> = ({ items, onClose, onRemove, onCheckout }) => {
   const total = items.reduce((sum, item) => {
-    const price = item.product.discountPrice && item.product.discountPrice < item.product.price 
+    let price = item.product.discountPrice && item.product.discountPrice < item.product.price 
       ? item.product.discountPrice 
       : item.product.price;
+    
+    if (item.version && item.product.versions) {
+      const v = item.product.versions.find(v => v.name === item.version);
+      if (v) price = v.price;
+    }
+    
     return sum + price * item.quantity;
   }, 0);
 
@@ -46,39 +52,50 @@ export const Cart: React.FC<CartProps> = ({ items, onClose, onRemove, onCheckout
               </button>
             </div>
           ) : (
-            items.map((item) => (
-              <div key={item.product.id} className="flex gap-4 group">
-                <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0">
-                  <img 
-                    src={item.product.imageUrl} 
-                    alt={item.product.name} 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-grow">
-                  <h3 className="font-bold text-gray-900 line-clamp-1">{item.product.name}</h3>
-                  <p className="text-sm text-gray-500">{item.product.category}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      {item.product.discountPrice && item.product.discountPrice < item.product.price ? (
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-indigo-600">৳{item.product.discountPrice} x {item.quantity}</span>
-                          <span className="text-xs text-gray-400 line-through">৳{item.product.price}</span>
-                        </div>
-                      ) : (
-                        <span className="font-bold text-indigo-600">৳{item.product.price} x {item.quantity}</span>
+            items.map((item, idx) => {
+              let displayPrice = item.product.discountPrice && item.product.discountPrice < item.product.price 
+                ? item.product.discountPrice 
+                : item.product.price;
+              
+              if (item.version && item.product.versions) {
+                const v = item.product.versions.find(v => v.name === item.version);
+                if (v) displayPrice = v.price;
+              }
+
+              return (
+                <div key={`${item.product.id}-${item.version || idx}`} className="flex gap-4 group">
+                  <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0">
+                    <img 
+                      src={item.product.imageUrl} 
+                      alt={item.product.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="font-bold text-gray-900 line-clamp-1">{item.product.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-500">{item.product.category}</p>
+                      {item.version && (
+                        <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                          {item.version}
+                        </span>
                       )}
                     </div>
-                    <button 
-                      onClick={() => onRemove(item.product.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-indigo-600">৳{displayPrice} x {item.quantity}</span>
+                      </div>
+                      <button 
+                        onClick={() => onRemove(item.product.id, item.version)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
