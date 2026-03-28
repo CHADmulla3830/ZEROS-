@@ -11,13 +11,12 @@ import { ProductDetail } from './components/ProductDetail';
 import { ProductPage } from './pages/ProductPage';
 import { Page } from './pages/Page';
 import { Footer } from './components/Footer';
-import { ChatBot } from './components/ChatBot';
 import { Product, UserProfile } from './types';
 import { ProductService } from './services/productService';
 import { AuthService } from './services/authService';
 import { db } from './lib/firebase';
 import { doc, getDocFromServer } from 'firebase/firestore';
-import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, Sparkles, X, History, MessageCircle } from 'lucide-react';
+import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, X, History, MessageCircle, Star } from 'lucide-react';
 import Fuse from 'fuse.js';
 
 export default function App() {
@@ -49,7 +48,6 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -283,7 +281,7 @@ export default function App() {
                   <div className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
                       <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
-                        <Sparkles className="w-6 h-6" />
+                        <Star className="w-6 h-6" />
                       </div>
                       <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Featured Products</h2>
                     </div>
@@ -484,8 +482,8 @@ export default function App() {
 
                 {searchQuery && (
                   <div className="flex items-center gap-2 mb-8 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl w-fit">
-                    <Sparkles className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-widest">AI Enhanced Search Results</span>
+                    <Search className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-widest">Search Results</span>
                   </div>
                 )}
 
@@ -602,19 +600,6 @@ export default function App() {
             setIsCheckoutOpen(false);
           }}
         />
-      )}
-
-      {/* Floating ChatBot Button */}
-      <button
-        onClick={() => setIsChatOpen(true)}
-        className={`fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-2xl shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50 group ${isChatOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
-      >
-        <MessageCircle className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full animate-pulse" />
-      </button>
-
-      {isChatOpen && (
-        <ChatBot products={products} onClose={() => setIsChatOpen(false)} />
       )}
 
       {selectedProduct && (

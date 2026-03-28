@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Sparkles, Search, Tag, Percent } from 'lucide-react';
+import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Search, Tag, Percent } from 'lucide-react';
 import { Product, Order, PromoCode, UserProfile, UserRole } from '../types';
 import { ProductService } from '../services/productService';
-import { AiService } from '../services/aiService';
 import { format } from 'date-fns';
 
 interface AdminPanelProps {
@@ -44,9 +43,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [productPage, setProductPage] = useState(1);
   const PRODUCTS_PER_PAGE = 30;
 
-  // AI Fetch State
-  const [aiSearchQuery, setAiSearchQuery] = useState('');
-  const [isAiFetching, setIsAiFetching] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
 
   const getAllowedTabs = (role: UserRole): ('dashboard' | 'products' | 'orders' | 'site' | 'promo' | 'users')[] => {
@@ -145,28 +141,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     setIsLoading(false);
   };
 
-  const handleAiFetch = async () => {
-    if (!aiSearchQuery.trim()) return;
-    setIsAiFetching(true);
-    try {
-      const details = await AiService.fetchGameDetails(aiSearchQuery);
-      if (details) {
-        setProductForm(prev => ({
-          ...prev,
-          name: details.name || prev.name,
-          description: details.description || prev.description,
-          price: details.price || prev.price,
-          genre: details.genre || prev.genre,
-          publisher: details.publisher || prev.publisher,
-          releaseDate: details.releaseDate || prev.releaseDate,
-          imageUrl: details.imageUrl || prev.imageUrl
-        }));
-      }
-    } finally {
-      setIsAiFetching(false);
-    }
-  };
-
   const handleUpdateStatus = async (orderId: string, status: Order['status'], approved?: boolean, reason?: string, extraData?: Partial<Order>) => {
     setIsActionLoading(orderId);
     try {
@@ -186,19 +160,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
       setShowShippingModal(false);
       setRejectionReason('');
       setShippingInfo({ trackingNumber: '', estimatedDelivery: '' });
-    }
-  };
-
-  const handleGenerateFaq = async () => {
-    setIsActionLoading('generate-faq');
-    try {
-      const faq = await AiService.generateFaq(products, siteContent);
-      if (faq) {
-        setSiteContent(prev => ({ ...prev, faq: prev.faq ? `${prev.faq}\n\n${faq}` : faq }));
-        alert("AI FAQs generated and added to the FAQ section. Please review and save.");
-      }
-    } finally {
-      setIsActionLoading(null);
     }
   };
 
@@ -422,7 +383,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
-                  <Sparkles className="w-6 h-6" />
+                  <ShoppingBag className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Revenue</p>
@@ -1105,15 +1066,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
               <div className="space-y-4 md:col-span-2">
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ (Markdown Supported)</label>
-                  <button 
-                    type="button"
-                    onClick={handleGenerateFaq}
-                    disabled={isActionLoading === 'generate-faq'}
-                    className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:underline disabled:opacity-50"
-                  >
-                    {isActionLoading === 'generate-faq' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                    AI Generate FAQ
-                  </button>
                 </div>
                 <textarea 
                   rows={6}
@@ -1128,7 +1080,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
               disabled={isActionLoading === 'save-site'}
               className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
             >
-              {isActionLoading === 'save-site' ? <Loader2 className="animate-spin" /> : <Sparkles className="w-5 h-5" />}
+              {isActionLoading === 'save-site' ? <Loader2 className="animate-spin" /> : <CheckCircle className="w-5 h-5" />}
               Save Changes
             </button>
           </form>
@@ -1145,33 +1097,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 <X className="w-6 h-6" />
               </button>
             </div>
-
-            {!editingProduct && (
-              <div className="mb-8 p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
-                <label className="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-3">AI Quick Fill</label>
-                <div className="flex gap-3">
-                  <div className="relative flex-grow">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
-                    <input 
-                      type="text"
-                      placeholder="Enter game name (e.g. Elden Ring)"
-                      value={aiSearchQuery}
-                      onChange={(e) => setAiSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <button 
-                    onClick={handleAiFetch}
-                    disabled={isAiFetching || !aiSearchQuery.trim()}
-                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {isAiFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    <span>Fetch</span>
-                  </button>
-                </div>
-                <p className="text-[10px] text-indigo-400 mt-2 ml-1">AI will automatically find description, price, genre, and more.</p>
-              </div>
-            )}
 
             <form onSubmit={handleSaveProduct} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
