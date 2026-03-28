@@ -137,7 +137,7 @@ export const ProductService = {
 
   async getAdmins(): Promise<UserProfile[]> {
     try {
-      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor']));
+      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor', 'content_manager', 'sales_manager']));
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => doc.data() as UserProfile);
     } catch (error) {

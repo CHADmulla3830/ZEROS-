@@ -48,6 +48,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [isAiFetching, setIsAiFetching] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
 
+  const getAllowedTabs = (role: UserRole): ('products' | 'orders' | 'site' | 'promo' | 'users')[] => {
+    switch (role) {
+      case 'super_admin':
+      case 'admin':
+      case 'manager':
+        return ['products', 'orders', 'promo', 'users', 'site'];
+      case 'content_manager':
+        return ['products', 'site'];
+      case 'sales_manager':
+        return ['orders', 'promo'];
+      case 'product_manager':
+        return ['products'];
+      case 'editor':
+        return ['site'];
+      default:
+        return [];
+    }
+  };
+
+  const allowedTabs = currentUser ? getAllowedTabs(currentUser.role) : [];
+
+  useEffect(() => {
+    if (currentUser) {
+      const allowed = getAllowedTabs(currentUser.role);
+      if (allowed.length > 0 && !allowed.includes(activeTab)) {
+        setActiveTab(allowed[0]);
+      }
+    }
+  }, [currentUser]);
+
   // Filters
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('All');
@@ -310,37 +340,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <div className="flex gap-4">
-          <button 
-            onClick={() => setActiveTab('products')}
-            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'products' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-          >
-            Products
-          </button>
-          <button 
-            onClick={() => setActiveTab('orders')}
-            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-          >
-            Orders
-          </button>
-          <button 
-            onClick={() => setActiveTab('promo')}
-            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'promo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-          >
-            Promo Codes
-          </button>
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-          >
-            Users
-          </button>
-          <button 
-            onClick={() => setActiveTab('site')}
-            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'site' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-          >
-            Site Content
-          </button>
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {allowedTabs.includes('products') && (
+            <button 
+              onClick={() => setActiveTab('products')}
+              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'products' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Products
+            </button>
+          )}
+          {allowedTabs.includes('orders') && (
+            <button 
+              onClick={() => setActiveTab('orders')}
+              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Orders
+            </button>
+          )}
+          {allowedTabs.includes('promo') && (
+            <button 
+              onClick={() => setActiveTab('promo')}
+              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'promo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Promo Codes
+            </button>
+          )}
+          {allowedTabs.includes('users') && (
+            <button 
+              onClick={() => setActiveTab('users')}
+              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Users
+            </button>
+          )}
+          {allowedTabs.includes('site') && (
+            <button 
+              onClick={() => setActiveTab('site')}
+              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'site' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Site Content
+            </button>
+          )}
         </div>
       </div>
 
