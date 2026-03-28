@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Gamepad2, Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin } from 'lucide-react';
 
 export const Footer: React.FC = () => {
@@ -38,20 +39,17 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-8">Quick Links</h4>
             <ul className="space-y-4">
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">About Us</a></li>
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Contact Us</a></li>
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Terms of Service</a></li>
+              <li><Link to="/page/contact" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Contact Us</Link></li>
+              <li><Link to="/page/privacy" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/page/terms" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-8">Support</h4>
             <ul className="space-y-4">
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">FAQ</a></li>
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Refund Policy</a></li>
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Payment Methods</a></li>
-              <li><a href="#" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">How to Buy</a></li>
+              <li><Link to="/page/faq" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">FAQ</Link></li>
+              <li><Link to="/page/refund" className="text-gray-500 hover:text-indigo-600 text-sm font-bold transition-colors">Refund Policy</Link></li>
             </ul>
           </div>
 
@@ -65,15 +63,6 @@ export const Footer: React.FC = () => {
                 <div>
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email</p>
                   <p className="text-sm font-bold text-gray-900">support@zeros.com</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-4">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
-                  <Phone className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone</p>
-                  <p className="text-sm font-bold text-gray-900">+880 1700-000000</p>
                 </div>
               </li>
             </ul>

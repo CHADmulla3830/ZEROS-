@@ -34,6 +34,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: 'product' | 'order' | 'promo' } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [shippingInfo, setShippingInfo] = useState({ trackingNumber: '', estimatedDelivery: '' });
 
   // Search States
   const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -134,13 +136,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     }
   };
 
-  const handleUpdateStatus = async (orderId: string, status: Order['status'], approved?: boolean, reason?: string) => {
+  const handleUpdateStatus = async (orderId: string, status: Order['status'], approved?: boolean, reason?: string, extraData?: Partial<Order>) => {
     setIsActionLoading(orderId);
     try {
       if (status === 'cancellation_approved' || status === 'cancellation_rejected') {
         await ProductService.confirmOrderCancellation(orderId, approved!, reason);
       } else {
-        await ProductService.updateOrderStatus(orderId, status);
+        await ProductService.updateOrderStatus(orderId, status, extraData);
       }
       await fetchData();
       if (selectedOrder?.id === orderId) {
@@ -150,7 +152,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     } finally {
       setIsActionLoading(null);
       setShowRejectionModal(false);
+      setShowShippingModal(false);
       setRejectionReason('');
+      setShippingInfo({ trackingNumber: '', estimatedDelivery: '' });
+    }
+  };
+
+  const handleGenerateFaq = async () => {
+    setIsActionLoading('generate-faq');
+    try {
+      const faq = await AiService.generateFaq(products, siteContent);
+      if (faq) {
+        setSiteContent(prev => ({ ...prev, faq: prev.faq ? `${prev.faq}\n\n${faq}` : faq }));
+        alert("AI FAQs generated and added to the FAQ section. Please review and save.");
+      }
+    } finally {
+      setIsActionLoading(null);
     }
   };
 
@@ -573,6 +590,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           o.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 
                           o.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
+                          o.status === 'processing' ? 'bg-blue-100 text-blue-600' :
+                          o.status === 'shipped' ? 'bg-indigo-100 text-indigo-600' :
+                          o.status === 'delivered' ? 'bg-teal-100 text-teal-600' :
                           o.status === 'cancellation_requested' ? 'bg-purple-100 text-purple-600' :
                           o.status === 'cancellation_approved' ? 'bg-emerald-100 text-emerald-600' :
                           o.status === 'cancellation_rejected' ? 'bg-red-100 text-red-600' :
@@ -630,6 +650,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                                 title="Set to Pending"
                               >
                                 {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateStatus(o.id, 'processing')} 
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50"
+                                disabled={o.status === 'processing' || isActionLoading === o.id}
+                                title="Set to Processing"
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Loader2 className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setSelectedOrder(o);
+                                  setShowShippingModal(true);
+                                }} 
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-50"
+                                disabled={o.status === 'shipped' || isActionLoading === o.id}
+                                title="Set to Shipped"
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateStatus(o.id, 'delivered')} 
+                                className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-all disabled:opacity-50"
+                                disabled={o.status === 'delivered' || isActionLoading === o.id}
+                                title="Set to Delivered"
+                              >
+                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                               </button>
                               <button 
                                 onClick={() => handleUpdateStatus(o.id, 'completed')} 
@@ -803,6 +850,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                         >
                           <option value="user">User</option>
                           <option value="product_manager">Product Manager</option>
+                          <option value="sales_manager">Sales Manager</option>
+                          <option value="content_manager">Content Manager</option>
                           <option value="manager">Manager</option>
                           <option value="editor">Editor</option>
                           <option value="admin">Admin</option>
@@ -821,7 +870,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           <form onSubmit={handleSaveSiteContent} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Contact Us</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Contact Us (Markdown Supported)</label>
                 <textarea 
                   rows={4}
                   value={siteContent.contactUs}
@@ -830,7 +879,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Refund Policy</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Refund Policy (Markdown Supported)</label>
                 <textarea 
                   rows={4}
                   value={siteContent.refundPolicy}
@@ -839,7 +888,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Privacy Policy</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Privacy Policy (Markdown Supported)</label>
                 <textarea 
                   rows={4}
                   value={siteContent.privacyPolicy}
@@ -848,7 +897,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Terms of Service</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Terms of Service (Markdown Supported)</label>
                 <textarea 
                   rows={4}
                   value={siteContent.termsOfService}
@@ -857,7 +906,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Payment Instructions</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Payment Instructions (Markdown Supported)</label>
                 <textarea 
                   rows={4}
                   value={siteContent.paymentInstructions}
@@ -867,7 +916,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4 md:col-span-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ (Markdown Supported)</label>
+                  <button 
+                    type="button"
+                    onClick={handleGenerateFaq}
+                    disabled={isActionLoading === 'generate-faq'}
+                    className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:underline disabled:opacity-50"
+                  >
+                    {isActionLoading === 'generate-faq' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    AI Generate FAQ
+                  </button>
+                </div>
                 <textarea 
                   rows={6}
                   value={siteContent.faq}
@@ -1072,6 +1132,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+                <div className="flex items-center gap-3 pt-6">
+                  <input 
+                    type="checkbox"
+                    id="featured-checkbox"
+                    checked={productForm.featured}
+                    onChange={e => setProductForm({...productForm, featured: e.target.checked})}
+                    className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <label htmlFor="featured-checkbox" className="text-sm font-bold text-gray-700 cursor-pointer">
+                    Featured Product
+                  </label>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Description</label>
@@ -1257,6 +1329,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 <span className="text-lg font-bold">Total Amount</span>
                 <span className="text-2xl font-black text-indigo-600">৳{selectedOrder.totalAmount}</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Info Modal */}
+      {showShippingModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Shipping Information</h2>
+              <button onClick={() => setShowShippingModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4 mb-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tracking Number</label>
+                <input 
+                  value={shippingInfo.trackingNumber}
+                  onChange={e => setShippingInfo({...shippingInfo, trackingNumber: e.target.value})}
+                  placeholder="e.g. ZEROS-123456"
+                  className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Estimated Delivery</label>
+                <input 
+                  type="date"
+                  value={shippingInfo.estimatedDelivery}
+                  onChange={e => setShippingInfo({...shippingInfo, estimatedDelivery: e.target.value})}
+                  className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowShippingModal(false)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleUpdateStatus(selectedOrder!.id, 'shipped', undefined, undefined, shippingInfo)}
+                disabled={isActionLoading === selectedOrder?.id}
+                className="flex-1 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isActionLoading === selectedOrder?.id && <Loader2 className="w-4 h-4 animate-spin" />}
+                Ship Order
+              </button>
             </div>
           </div>
         </div>

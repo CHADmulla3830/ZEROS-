@@ -3,15 +3,16 @@ import { Send, Bot, User, X, Loader2, Sparkles } from 'lucide-react';
 import { getGeminiAI } from '../lib/gemini';
 import { ThinkingLevel } from '@google/genai';
 import Markdown from 'react-markdown';
+import { Product } from '../types';
 
 interface Message {
   role: 'user' | 'model';
   text: string;
 }
 
-export const ChatBot: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const ChatBot: React.FC<{ products: Product[]; onClose: () => void }> = ({ products, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Hello! I am your GameVault AI Assistant. How can I help you today? I can help you find games, explain top-up processes, or answer questions about bKash/Nagad payments.' }
+    { role: 'model', text: "Hello! I am your ZEROS' AI Assistant. How can I help you today? I can help you find games, explain top-up processes, or answer questions about bKash/Nagad payments." }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +34,13 @@ export const ChatBot: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     try {
       const ai = getGeminiAI();
+      const productList = products.slice(0, 20).map(p => `${p.name} (৳${p.price}) - ${p.genre}`).join(', ');
+      const systemInstruction = `You are an expert gaming assistant for ZEROS', a gaming marketplace in Bangladesh. 
+      You help users with game top-ups, gift cards, and digital keys. 
+      Be helpful, polite, and use a friendly tone. Mention that payments are only accepted via bKash and Nagad.
+      Here are some products currently available on the site: ${productList}.
+      Only answer questions about these products and the site. If a user asks for something else, politely decline and offer to help with gaming products.`;
+
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-pro-preview',
         contents: [...messages, { role: 'user', text: userMessage }].map(m => ({
@@ -40,7 +48,7 @@ export const ChatBot: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           parts: [{ text: m.text }]
         })),
         config: {
-          systemInstruction: "You are an expert gaming assistant for GameVault BD, an e-commerce site in Bangladesh. You help users with game top-ups (PUBG, Free Fire, Valorant), gift cards, and payment issues related to bKash and Nagad. Be helpful, polite, and use a friendly tone. Mention that payments are only accepted via bKash and Nagad.",
+          systemInstruction,
           thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
         }
       });
