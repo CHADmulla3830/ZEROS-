@@ -76,14 +76,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() in ['admin', 'manager', 'product_manager', 'editor']) ||
-         (request.auth.token.email == "chadmulla7@gmail.com" && request.auth.token.email_verified == true));
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() in ['admin', 'manager', 'product_manager', 'editor', 'content_manager', 'sales_manager']) ||
+         (request.auth.token.email == "chadmulla7@gmail.com"));
     }
 
     function isSuperAdmin() {
       return isAuthenticated() && 
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() == 'admin') ||
-         (request.auth.token.email == "chadmulla7@gmail.com" && request.auth.token.email_verified == true));
+         (request.auth.token.email == "chadmulla7@gmail.com"));
     }
 
     function isValidUser(data) {
@@ -201,6 +201,10 @@ service cloud.firestore {
     match /promoCodes/{promoId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() && isValidPromoCode(request.resource.data);
+    }
+
+    match /test/connection {
+      allow read: if true;
     }
 
     match /settings/siteContent {

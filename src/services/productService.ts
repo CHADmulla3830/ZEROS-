@@ -488,7 +488,9 @@ export const ProductService = {
         callback(docSnap.data());
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
+      console.error('Firestore Subscription Error (Site Content):', error);
+      // Don't throw here to avoid breaking the UI on startup if there's a transient error
+      // handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
     });
   },
 
