@@ -73,13 +73,29 @@ export const Footer: React.FC = () => {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
             © {new Date().getFullYear()} ZEROS' Gaming Marketplace. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">We Accept</span>
-            <div className="flex items-center gap-4">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/BKash_Logo.svg/512px-BKash_Logo.svg.png" className="h-6 object-contain grayscale hover:grayscale-0 transition-all cursor-help" alt="bKash" title="bKash" />
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Nagad_Logo.svg/512px-Nagad_Logo.svg.png" className="h-6 object-contain grayscale hover:grayscale-0 transition-all cursor-help" alt="Nagad" title="Nagad" />
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="flex items-center gap-6">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">We Accept</span>
+              <div className="flex items-center gap-4">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/BKash_Logo.svg/512px-BKash_Logo.svg.png" className="h-6 object-contain grayscale hover:grayscale-0 transition-all cursor-help" alt="bKash" title="bKash" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Nagad_Logo.svg/512px-Nagad_Logo.svg.png" className="h-6 object-contain grayscale hover:grayscale-0 transition-all cursor-help" alt="Nagad" title="Nagad" />
+              </div>
+            </div>
+            <div className="h-8 w-px bg-gray-100 hidden md:block" />
+            <div className="flex items-center gap-3 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100">
+              <Gamepad2 className="w-4 h-4 text-emerald-600" />
+              <div className="text-left">
+                <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest leading-none mb-1">Security Verified</p>
+                <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest leading-none">Manual Payment System</p>
+              </div>
             </div>
           </div>
+        </div>
+        <div className="mt-8 pt-8 border-t border-gray-50 text-center">
+          <p className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.2em] leading-relaxed max-w-2xl mx-auto">
+            ZEROS' is a legitimate gaming marketplace. We use a manual payment verification system to ensure maximum security. 
+            We will never ask for your bKash/Nagad PIN or OTP. Always verify the Transaction ID before submission.
+          </p>
         </div>
       </div>
     </footer>

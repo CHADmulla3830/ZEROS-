@@ -10,7 +10,7 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'site' | 'promo' | 'users'>('products');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'site' | 'promo' | 'users'>('dashboard');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -39,6 +39,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
 
   // Search States
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [productPage, setProductPage] = useState(1);
   const PRODUCTS_PER_PAGE = 30;
@@ -48,20 +49,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [isAiFetching, setIsAiFetching] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
 
-  const getAllowedTabs = (role: UserRole): ('products' | 'orders' | 'site' | 'promo' | 'users')[] => {
+  const getAllowedTabs = (role: UserRole): ('dashboard' | 'products' | 'orders' | 'site' | 'promo' | 'users')[] => {
     switch (role) {
       case 'super_admin':
       case 'admin':
       case 'manager':
-        return ['products', 'orders', 'promo', 'users', 'site'];
+        return ['dashboard', 'products', 'orders', 'promo', 'users', 'site'];
       case 'content_manager':
-        return ['products', 'site'];
+        return ['dashboard', 'products', 'site'];
       case 'sales_manager':
-        return ['orders', 'promo'];
+        return ['dashboard', 'orders', 'promo'];
       case 'product_manager':
-        return ['products'];
+        return ['dashboard', 'products'];
       case 'editor':
-        return ['site'];
+        return ['dashboard', 'site'];
       default:
         return [];
     }
@@ -311,7 +312,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const filteredOrders = orders.filter(o => {
     const statusMatch = orderStatusFilter === 'All' || o.status === orderStatusFilter;
     const paymentMatch = orderPaymentFilter === 'All' || o.paymentMethod === orderPaymentFilter;
-    return statusMatch && paymentMatch;
+    const searchMatch = orderSearchQuery === '' || 
+      o.id.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+      o.userId.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+      o.transactionId.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+      o.paymentNumber.toLowerCase().includes(orderSearchQuery.toLowerCase());
+    return statusMatch && paymentMatch && searchMatch;
   });
 
   const sortedProducts = [...products].sort((a, b) => {
@@ -334,13 +340,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const totalProductPages = Math.ceil(filteredAndSortedProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = filteredAndSortedProducts.slice((productPage - 1) * PRODUCTS_PER_PAGE, productPage * PRODUCTS_PER_PAGE);
 
+  // Dashboard Stats
+  const totalRevenue = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.totalAmount, 0);
+  const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  const totalUsers = users.length;
+  const totalOrders = orders.length;
+
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold">Admin Panel</h1>
         <div className="flex gap-4 overflow-x-auto pb-2">
+          {allowedTabs.includes('dashboard') && (
+            <button 
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+            >
+              Dashboard
+            </button>
+          )}
           {allowedTabs.includes('products') && (
             <button 
               onClick={() => setActiveTab('products')}
@@ -384,7 +404,124 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
         </div>
       </div>
 
-      {activeTab === 'products' ? (
+      {activeTab === 'dashboard' ? (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center">
+                  <ShoppingBag className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Orders</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{totalOrders}</h3>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 font-medium">Lifetime orders placed</div>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Revenue</p>
+                  <h3 className="text-2xl font-bold text-gray-900">৳{totalRevenue}</h3>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 font-medium">From completed orders</div>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pending Orders</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{pendingOrders}</h3>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 font-medium">Awaiting processing</div>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Users</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{totalUsers}</h3>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 font-medium">Registered customers</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-6">Recent Orders</h3>
+              <div className="space-y-4">
+                {orders.slice(0, 5).map(o => (
+                  <div key={o.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        o.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                      }`}>
+                        <ShoppingBag className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">Order #{o.id.slice(-6)}</p>
+                        <p className="text-xs text-gray-500">{format(new Date(o.createdAt), 'MMM dd, HH:mm')}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gray-900">৳{o.totalAmount}</p>
+                      <p className={`text-[10px] font-bold uppercase ${
+                        o.status === 'completed' ? 'text-emerald-600' : 'text-amber-600'
+                      }`}>{o.status}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button 
+                onClick={() => setActiveTab('orders')}
+                className="w-full mt-6 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+              >
+                View All Orders
+              </button>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-6">Top Selling Products</h3>
+              <div className="space-y-4">
+                {products.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 5).map(p => (
+                  <div key={p.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                        <Package className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{p.name}</p>
+                        <p className="text-xs text-gray-500">{p.category}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gray-900">৳{p.price}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Popularity: {p.popularity || 0}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button 
+                onClick={() => setActiveTab('products')}
+                className="w-full mt-6 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+              >
+                Manage Products
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'products' ? (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
@@ -547,7 +684,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
               <Filter className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Filters:</span>
             </div>
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 flex-grow">
+              <div className="relative flex-grow max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search Order ID, User ID, Transaction ID..."
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
               <select 
                 value={orderSortBy}
                 onChange={(e) => setOrderSortBy(e.target.value)}

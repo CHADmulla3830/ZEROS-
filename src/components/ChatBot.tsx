@@ -12,7 +12,7 @@ interface Message {
 
 export const ChatBot: React.FC<{ products: Product[]; onClose: () => void }> = ({ products, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: "Hello! I am your ZEROS' AI Assistant. How can I help you today? I can help you find games, explain top-up processes, or answer questions about bKash/Nagad payments." }
+    { role: 'model', text: "Hello! I am your ZEROS' AI Assistant. How can I help you today? I can help you find games, explain top-up processes, or answer questions about bKash/Nagad payments. \n\n**Security Note:** I will never ask for your password, PIN, or OTP." }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,14 +35,20 @@ export const ChatBot: React.FC<{ products: Product[]; onClose: () => void }> = (
     try {
       const ai = getGeminiAI();
       const productList = products.slice(0, 20).map(p => `${p.name} (৳${p.price}) - ${p.genre}`).join(', ');
-      const systemInstruction = `You are an expert gaming assistant for ZEROS', a gaming marketplace in Bangladesh. 
-      You help users with game top-ups, gift cards, and digital keys. 
-      Be helpful, polite, and use a friendly tone. Mention that payments are only accepted via bKash and Nagad.
-      Here are some products currently available on the site: ${productList}.
-      Only answer questions about these products and the site. If a user asks for something else, politely decline and offer to help with gaming products.`;
+      const systemInstruction = `You are an expert gaming assistant for ZEROS', a legitimate gaming marketplace in Bangladesh. 
+      Your goal is to help users find products and explain the manual payment process.
+      
+      CRITICAL SECURITY RULES:
+      1. NEVER ask for a user's password, bKash/Nagad PIN, or OTP.
+      2. If a user tries to give you sensitive info, tell them to STOP and that you don't need it.
+      3. Always clarify that ZEROS' uses a MANUAL payment system where users send money first and then provide a Transaction ID.
+      4. Be helpful, polite, and use a friendly tone.
+      
+      Products: ${productList}.
+      Only answer questions about ZEROS' products and services.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
+        model: 'gemini-3-flash-preview',
         contents: [...messages, { role: 'user', text: userMessage }].map(m => ({
           role: m.role,
           parts: [{ text: m.text }]
@@ -72,7 +78,7 @@ export const ChatBot: React.FC<{ products: Product[]; onClose: () => void }> = (
           </div>
           <div>
             <h3 className="font-bold">AI Assistant</h3>
-            <p className="text-[10px] text-indigo-100 uppercase tracking-widest font-semibold">Powered by Gemini 3.1 Pro</p>
+            <p className="text-[10px] text-indigo-100 uppercase tracking-widest font-semibold">Verified ZEROS' Support</p>
           </div>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
