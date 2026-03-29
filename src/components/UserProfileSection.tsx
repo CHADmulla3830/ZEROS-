@@ -8,12 +8,14 @@ import { ProductCard } from './ProductCard';
 
 interface UserProfileSectionProps {
   user: UserProfile;
+  onAddToCart: (product: Product) => void;
   onToggleWishlist: (productId: string) => void;
   onBack: () => void;
 }
 
 export const UserProfileSection: React.FC<UserProfileSectionProps> = ({ 
   user, 
+  onAddToCart,
   onToggleWishlist,
   onBack
 }) => {
@@ -309,6 +311,7 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
                         <ProductCard 
                           key={product.id}
                           product={product}
+                          onAddToCart={onAddToCart}
                           onToggleWishlist={onToggleWishlist}
                           isInWishlist={true}
                           onClick={() => {
@@ -335,6 +338,7 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
                         <ProductCard 
                           key={product.id}
                           product={product}
+                          onAddToCart={onAddToCart}
                           onToggleWishlist={onToggleWishlist}
                           isInWishlist={user.wishlist?.includes(product.id)}
                         />

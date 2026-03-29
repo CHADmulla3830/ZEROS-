@@ -3,13 +3,13 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
+import { QuickViewModal } from './components/QuickViewModal';
 import { Cart } from './components/Cart';
 import { Checkout } from './components/Checkout';
 import { AdminPanel } from './components/AdminPanel';
 import { UserProfileSection } from './components/UserProfileSection';
 import { ProductDetail } from './components/ProductDetail';
 import { ProductPage } from './pages/ProductPage';
-import { Page } from './pages/Page';
 import { Footer } from './components/Footer';
 import { Product, UserProfile } from './types';
 import { ProductService } from './services/productService';
@@ -47,6 +47,8 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [activePolicy, setActivePolicy] = useState<'contact' | 'refund' | 'privacy' | 'terms' | 'faq' | null>(null);
 
   useEffect(() => {
     const testConnection = async () => {
@@ -253,8 +255,10 @@ export default function App() {
                         <ProductCard 
                           key={`featured-${product.id}`} 
                           product={product} 
+                          onAddToCart={addToCart} 
                           onToggleWishlist={toggleWishlist}
                           onClick={handleProductClick}
+                          onQuickView={setQuickViewProduct}
                           isInWishlist={user?.wishlist?.includes(product.id)}
                         />
                       ))}
@@ -378,8 +382,10 @@ export default function App() {
                     <ProductCard 
                       key={product.id} 
                       product={product} 
+                      onAddToCart={addToCart} 
                       onToggleWishlist={toggleWishlist}
                       onClick={handleProductClick}
+                      onQuickView={setQuickViewProduct}
                       isInWishlist={user?.wishlist?.includes(product.id)}
                     />
                   ))}
@@ -412,8 +418,10 @@ export default function App() {
                         <ProductCard 
                           key={`recent-${product.id}`} 
                           product={product} 
+                          onAddToCart={addToCart} 
                           onToggleWishlist={toggleWishlist}
                           onClick={handleProductClick}
+                          onQuickView={setQuickViewProduct}
                           isInWishlist={user?.wishlist?.includes(product.id)}
                         />
                       ))}
@@ -427,6 +435,7 @@ export default function App() {
             user ? (
               <UserProfileSection 
                 user={user} 
+                onAddToCart={addToCart}
                 onToggleWishlist={toggleWishlist}
                 onBack={() => navigate('/')}
               />
@@ -451,9 +460,6 @@ export default function App() {
               addToCart={addToCart}
               toggleWishlist={toggleWishlist}
             />
-          } />
-          <Route path="/page/:pageId" element={
-            <Page siteContent={siteContent} />
           } />
         </Routes>
       </main>
@@ -502,7 +508,43 @@ export default function App() {
         />
       )}
 
+      {activePolicy && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative">
+            <button 
+              onClick={() => setActivePolicy(null)}
+              className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold mb-6">
+              {activePolicy === 'contact' ? 'Contact Us' : 
+               activePolicy === 'refund' ? 'Refund Policy' :
+               activePolicy === 'privacy' ? 'Privacy Policy' :
+               activePolicy === 'terms' ? 'Terms of Service' : 'FAQ'}
+            </h2>
+            <div className="prose prose-indigo max-h-[60vh] overflow-y-auto pr-4 text-gray-600 leading-relaxed whitespace-pre-wrap">
+              {activePolicy === 'contact' ? siteContent.contactUs : 
+               activePolicy === 'refund' ? siteContent.refundPolicy :
+               activePolicy === 'privacy' ? siteContent.privacyPolicy :
+               activePolicy === 'terms' ? siteContent.termsOfService : siteContent.faq}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
+      
+      {quickViewProduct && (
+        <QuickViewModal
+          product={quickViewProduct}
+          isOpen={!!quickViewProduct}
+          onClose={() => setQuickViewProduct(null)}
+          onAddToCart={addToCart}
+          onToggleWishlist={toggleWishlist}
+          isInWishlist={user?.wishlist?.includes(quickViewProduct.id)}
+        />
+      )}
     </div>
   );
 }

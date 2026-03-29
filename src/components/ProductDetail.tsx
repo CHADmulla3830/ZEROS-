@@ -179,6 +179,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <span className="text-white text-lg">{(product.rating || 0).toFixed(1)}</span>
             </div>
             <div className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              <span>{product.popularity} Players</span>
+            </div>
+            <div className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
               <span>{product.publisher}</span>
             </div>
@@ -460,6 +464,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <ProductCard 
                   key={p.id}
                   product={p}
+                  onAddToCart={onAddToCart}
                   onToggleWishlist={onToggleWishlist}
                   isInWishlist={user?.wishlist?.includes(p.id)}
                   onClick={() => {
@@ -493,6 +498,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 >
                   <ProductCard 
                     product={p}
+                    onAddToCart={onAddToCart}
                     onToggleWishlist={onToggleWishlist}
                     isInWishlist={user?.wishlist?.includes(p.id)}
                   />

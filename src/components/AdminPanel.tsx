@@ -821,7 +821,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           <form onSubmit={handleSaveSiteContent} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Contact Us (Markdown Supported)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Contact Us</label>
                 <textarea 
                   rows={4}
                   value={siteContent.contactUs}
@@ -830,7 +830,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Refund Policy (Markdown Supported)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Refund Policy</label>
                 <textarea 
                   rows={4}
                   value={siteContent.refundPolicy}
@@ -839,7 +839,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Privacy Policy (Markdown Supported)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Privacy Policy</label>
                 <textarea 
                   rows={4}
                   value={siteContent.privacyPolicy}
@@ -848,7 +848,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Terms of Service (Markdown Supported)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Terms of Service</label>
                 <textarea 
                   rows={4}
                   value={siteContent.termsOfService}
@@ -857,7 +857,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Payment Instructions (Markdown Supported)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Payment Instructions</label>
                 <textarea 
                   rows={4}
                   value={siteContent.paymentInstructions}
@@ -867,7 +867,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4 md:col-span-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ (Markdown Supported)</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ</label>
                 <textarea 
                   rows={6}
                   value={siteContent.faq}

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { X, ShieldCheck, CreditCard, Smartphone, CheckCircle2, Loader2, Tag, Ticket } from 'lucide-react';
 import { Product, Order, PromoCode } from '../types';
 import { ProductService } from '../services/productService';
-import Markdown from 'react-markdown';
 
 interface CheckoutProps {
   items: { product: Product; quantity: number; version?: string }[];
@@ -255,10 +254,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, paymentInstru
               <CreditCard className="w-4 h-4" />
               Payment Instructions
             </h3>
-            <div className="text-xs text-indigo-700 leading-relaxed whitespace-pre-wrap prose prose-sm prose-indigo max-w-none">
-              {paymentInstructions ? (
-                <Markdown>{paymentInstructions}</Markdown>
-              ) : (
+            <div className="text-xs text-indigo-700 leading-relaxed whitespace-pre-wrap">
+              {paymentInstructions || (
                 <>
                   1. Send Money to <b>01700-000000</b> (Personal)<br />
                   2. Use your Phone Number as reference<br />

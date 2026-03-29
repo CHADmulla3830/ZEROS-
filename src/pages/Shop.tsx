@@ -7,11 +7,12 @@ import { Search, SlidersHorizontal, ArrowUpDown, Sparkles, X, Gamepad2 } from 'l
 interface ShopProps {
   products: Product[];
   user: UserProfile | null;
+  addToCart: (product: Product) => void;
   toggleWishlist: (productId: string) => void;
   setSelectedProduct: (product: Product) => void;
 }
 
-export function Shop({ products, user, toggleWishlist, setSelectedProduct }: ShopProps) {
+export function Shop({ products, user, addToCart, toggleWishlist, setSelectedProduct }: ShopProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [genreFilter, setGenreFilter] = useState('All');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
@@ -158,6 +159,7 @@ export function Shop({ products, user, toggleWishlist, setSelectedProduct }: Sho
             <ProductCard 
               key={product.id} 
               product={product} 
+              onAddToCart={addToCart} 
               onToggleWishlist={toggleWishlist}
               onClick={setSelectedProduct}
               isInWishlist={user?.wishlist?.includes(product.id)}
