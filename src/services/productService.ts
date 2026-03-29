@@ -10,7 +10,8 @@ import {
   deleteDoc,
   orderBy,
   arrayUnion,
-  updateDoc
+  updateDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Order, Review, PromoCode, UserProfile } from '../types';
@@ -136,7 +137,7 @@ export const ProductService = {
 
   async getAdmins(): Promise<UserProfile[]> {
     try {
-      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor']));
+      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor', 'content_manager', 'sales_manager']));
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => doc.data() as UserProfile);
     } catch (error) {
@@ -233,14 +234,20 @@ export const ProductService = {
     }
   },
 
-  async updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
+  async updateOrderStatus(orderId: string, status: Order['status'], extraData?: Partial<Order>): Promise<void> {
     try {
       const docRef = doc(db, 'orders', orderId);
       const now = new Date().toISOString();
-      await updateDoc(docRef, { 
+      const updateData: any = { 
         status,
         statusLog: arrayUnion({ status, timestamp: now })
-      });
+      };
+      
+      if (extraData) {
+        Object.assign(updateData, extraData);
+      }
+      
+      await updateDoc(docRef, updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
@@ -440,7 +447,8 @@ export const ProductService = {
           refundPolicy: "No refunds for digital products once the key is revealed.",
           privacyPolicy: "We value your privacy...",
           termsOfService: "By using our site, you agree...",
-          faq: "Frequently Asked Questions..."
+          faq: "Frequently Asked Questions...",
+          paymentInstructions: "Please send payment to our bKash/Nagad number..."
         };
         try {
           await setDoc(docRef, defaultContent);
@@ -450,15 +458,40 @@ export const ProductService = {
         return defaultContent;
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
+      // Don't use handleFirestoreError here to avoid breaking the init flow for unauthenticated users
+      console.error('Failed to fetch site content:', error);
       return {
         contactUs: "Contact us at support@zeros.com",
         refundPolicy: "No refunds for digital products once the key is revealed.",
         privacyPolicy: "We value your privacy...",
         termsOfService: "By using our site, you agree...",
-        faq: "Frequently Asked Questions..."
+        faq: "Frequently Asked Questions...",
+        paymentInstructions: "Please send payment to our bKash/Nagad number..."
       };
     }
+  },
+
+  subscribeToProducts(callback: (products: Product[]) => void) {
+    return onSnapshot(collection(db, 'products'), (snapshot) => {
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      callback(products);
+    }, (error) => {
+      console.error('Firestore Subscription Error (Products):', error);
+      // Don't throw here to avoid breaking the UI for unauthenticated users if there's a transient error
+      // handleFirestoreError(error, OperationType.LIST, 'products');
+    });
+  },
+
+  subscribeToSiteContent(callback: (content: any) => void) {
+    return onSnapshot(doc(db, 'settings', 'siteContent'), (docSnap) => {
+      if (docSnap.exists()) {
+        callback(docSnap.data());
+      }
+    }, (error) => {
+      console.error('Firestore Subscription Error (Site Content):', error);
+      // Don't throw here to avoid breaking the UI on startup if there's a transient error
+      // handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
+    });
   },
 
   async updateSiteContent(content: any): Promise<void> {

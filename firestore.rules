@@ -94,7 +94,9 @@ service cloud.firestore {
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
              (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 1000)) &&
              (!('wishlist' in data) || data.wishlist is list) &&
-             (!('promoUsage' in data) || data.promoUsage is map);
+             (!('recentlyViewed' in data) || data.recentlyViewed is list) &&
+             (!('promoUsage' in data) || data.promoUsage is map) &&
+             (!('createdAt' in data) || data.createdAt is string);
     }
 
     function isValidProduct(data) {

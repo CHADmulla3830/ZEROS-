@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
-import { ShoppingCart, Plus, Heart, Star, Loader2, Eye, Share2, Check } from 'lucide-react';
+import { Heart, Star, Eye, Share2, Check } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
-  onAddToCart: (product: Product) => Promise<void> | void;
   onToggleWishlist?: (productId: string) => void;
   onClick?: (product: Product) => void;
   isInWishlist?: boolean;
@@ -12,23 +11,11 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ 
   product, 
-  onAddToCart,
   onToggleWishlist,
   onClick,
   isInWishlist = false
 }) => {
-  const [isAdding, setIsAdding] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsAdding(true);
-    try {
-      await onAddToCart(product);
-    } finally {
-      setIsAdding(false);
-    }
-  };
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,16 +84,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           >
             {isCopied ? <Check className="w-5 h-5 text-green-500" /> : <Share2 className="w-5 h-5" />}
           </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick?.(product);
-            }}
-            className="p-2 rounded-xl bg-white/80 text-gray-400 hover:text-indigo-600 hover:bg-white backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-            title="Quick View"
-          >
-            <Eye className="w-5 h-5" />
-          </button>
         </div>
         {product.featured && (
           <div className="absolute top-4 left-4 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg">
@@ -150,13 +127,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               )}
             </div>
           </div>
-          <button 
-            onClick={handleAddToCart}
-            disabled={isAdding}
-            className="bg-gray-900 text-white p-3 rounded-2xl hover:bg-indigo-600 transition-colors shadow-lg shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isAdding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-          </button>
         </div>
       </div>
     </div>

@@ -9,13 +9,15 @@ import { AdminPanel } from './components/AdminPanel';
 import { UserProfileSection } from './components/UserProfileSection';
 import { ProductDetail } from './components/ProductDetail';
 import { ProductPage } from './pages/ProductPage';
+import { Page } from './pages/Page';
 import { Footer } from './components/Footer';
 import { Product, UserProfile } from './types';
 import { ProductService } from './services/productService';
 import { AuthService } from './services/authService';
 import { db } from './lib/firebase';
 import { doc, getDocFromServer } from 'firebase/firestore';
-import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, Sparkles, X, History } from 'lucide-react';
+import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, X, History, MessageCircle, Star } from 'lucide-react';
+import Fuse from 'fuse.js';
 
 export default function App() {
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ export default function App() {
   
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [genreFilter, setGenreFilter] = useState('All');
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'date' | 'popularity'>('popularity');
 
@@ -46,12 +48,20 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [activePolicy, setActivePolicy] = useState<'contact' | 'refund' | 'privacy' | 'terms' | 'faq' | null>(null);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const fuse = useMemo(() => new Fuse(products, {
+    keys: ['name', 'publisher', 'genre'],
+    threshold: 0.3,
+    distance: 100,
+    minMatchCharLength: 2
+  }), [products]);
 
   useEffect(() => {
     const testConnection = async () => {
       try {
-        await getDocFromServer(doc(db, 'settings', 'siteContent'));
+        await getDocFromServer(doc(db, 'test', 'connection'));
       } catch (error) {
         if (error instanceof Error && error.message.includes('the client is offline')) {
           console.error("Please check your Firebase configuration. The client is offline.");
@@ -63,36 +73,15 @@ export default function App() {
       // Set a safety timeout to ensure loading state is cleared
       const timeoutId = setTimeout(() => {
         setIsLoading(false);
-      }, 10000); // 10 seconds timeout
+      }, 10000);
 
       try {
         await testConnection();
         // Seed products in background, don't block
         ProductService.seedProducts().catch(err => console.error('Seeding failed:', err));
         
-        const [allProducts, content] = await Promise.all([
-          ProductService.getAllProducts(),
-          ProductService.getSiteContent()
-        ]);
-        
-        if (allProducts) {
-          setProducts(allProducts);
-          setFilteredProducts(allProducts);
-          
-          // Load recently viewed from local storage
-          const stored = localStorage.getItem('recentlyViewed');
-          if (stored) {
-            try {
-              const ids = JSON.parse(stored) as string[];
-              const recent = ids
-                .map(id => allProducts.find(p => p.id === id))
-                .filter((p): p is Product => p !== undefined);
-              setRecentlyViewed(recent);
-            } catch (e) {
-              console.error('Failed to parse recently viewed:', e);
-            }
-          }
-        }
+        // Initial fetch for site content to ensure it's loaded
+        const content = await ProductService.getSiteContent();
         if (content) {
           setSiteContent(content);
         }
@@ -106,34 +95,74 @@ export default function App() {
 
     init();
 
-    const unsubscribe = AuthService.onAuthChange(async (firebaseUser) => {
+    // Subscriptions
+    const unsubProducts = ProductService.subscribeToProducts((allProducts) => {
+      setProducts(allProducts);
+      setFilteredProducts(allProducts);
+      
+      // Load recently viewed from local storage after products are loaded
+      const stored = localStorage.getItem('recentlyViewed');
+      if (stored) {
+        try {
+          const ids = JSON.parse(stored) as string[];
+          const recent = ids
+            .map(id => allProducts.find(p => p.id === id))
+            .filter((p): p is Product => p !== undefined);
+          setRecentlyViewed(recent);
+        } catch (e) {
+          console.error('Failed to parse recently viewed:', e);
+        }
+      }
+    });
+
+    const unsubContent = ProductService.subscribeToSiteContent((content) => {
+      setSiteContent(content);
+    });
+
+    const unsubscribeAuth = AuthService.onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         const profile = await AuthService.getUserProfile(firebaseUser.uid);
         setUser(profile);
+        
+        // If admin, try seeding again in case it failed before
+        if (profile.role === 'admin' || profile.email === 'chadmulla7@gmail.com') {
+          ProductService.seedProducts().catch(err => console.error('Admin seeding failed:', err));
+        }
       } else {
         setUser(null);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubProducts();
+      unsubContent();
+      unsubscribeAuth();
+    };
   }, []);
+
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      const results = fuse.search(searchQuery).map(r => r.item);
+      setSuggestions(results.slice(0, 6));
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [searchQuery, fuse]);
 
   useEffect(() => {
     let result = [...products];
     
     // Search
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(q) || 
-        p.publisher.toLowerCase().includes(q) ||
-        p.genre.toLowerCase().includes(q)
-      );
+      const fuzzyResults = fuse.search(searchQuery).map(r => r.item);
+      result = fuzzyResults;
     }
 
     // Genre
-    if (genreFilter !== 'All') {
-      result = result.filter(p => p.genre === genreFilter);
+    if (genreFilter.length > 0) {
+      result = result.filter(p => genreFilter.includes(p.genre));
     }
 
     // Price Range
@@ -187,7 +216,16 @@ export default function App() {
     setCart(prev => prev.filter(item => !(item.product.id === productId && item.version === version)));
   };
 
-  const genres = ['All', ...new Set(products.map(p => p.genre))];
+  const toggleGenre = (genre: string) => {
+    setGenreFilter(prev => 
+      prev.includes(genre) 
+        ? prev.filter(g => g !== genre)
+        : [...prev, genre]
+    );
+  };
+
+  const genres = [...new Set(products.map(p => p.genre))];
+  const featuredProducts = products.filter(p => p.featured);
 
   const isAdmin = user?.role === 'admin' || user?.email === 'chadmulla7@gmail.com';
 
@@ -239,6 +277,28 @@ export default function App() {
               <Hero />
 
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                {featuredProducts.length > 0 && (
+                  <div className="mb-16">
+                    <div className="flex items-center gap-3 mb-8">
+                      <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
+                        <Star className="w-6 h-6" />
+                      </div>
+                      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Featured Products</h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                      {featuredProducts.map(product => (
+                        <ProductCard 
+                          key={`featured-${product.id}`} 
+                          product={product} 
+                          onToggleWishlist={toggleWishlist}
+                          onClick={handleProductClick}
+                          isInWishlist={user?.wishlist?.includes(product.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-8 mb-12">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-3">
@@ -259,15 +319,61 @@ export default function App() {
                           placeholder="Search by title, publisher, genre..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
+                          onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
                           className="w-full pl-12 pr-12 py-4 bg-white border border-gray-100 rounded-[1.5rem] focus:ring-2 focus:ring-indigo-500 transition-all outline-none shadow-sm font-medium"
                         />
                         {searchQuery && (
                           <button 
-                            onClick={() => setSearchQuery('')}
+                            onClick={() => {
+                              setSearchQuery('');
+                              setShowSuggestions(false);
+                            }}
                             className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-all"
                           >
                             <X className="w-4 h-4 text-gray-400" />
                           </button>
+                        )}
+
+                        {/* Search Suggestions */}
+                        {showSuggestions && suggestions.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                            <div className="p-2">
+                              {suggestions.map(product => (
+                                <button
+                                  key={`suggestion-${product.id}`}
+                                  onClick={() => {
+                                    setSearchQuery(product.name);
+                                    setShowSuggestions(false);
+                                    handleProductClick(product);
+                                  }}
+                                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left group"
+                                >
+                                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                    <img 
+                                      src={product.imageUrl} 
+                                      alt={product.name} 
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+                                  <div className="flex-grow min-w-0">
+                                    <h4 className="text-sm font-bold text-gray-900 truncate">{product.name}</h4>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.genre}</p>
+                                  </div>
+                                  <div className="text-sm font-black text-indigo-600">৳{product.price}</div>
+                                </button>
+                              ))}
+                            </div>
+                            <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fuzzy Search Enabled</span>
+                              <button 
+                                onClick={() => setShowSuggestions(false)}
+                                className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                       <button 
@@ -280,63 +386,94 @@ export default function App() {
                   </div>
 
                   {showFilters && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-in fade-in slide-in-from-top-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Genre</label>
-                        <select 
-                          value={genreFilter}
-                          onChange={(e) => setGenreFilter(e.target.value)}
-                          className="w-full p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
-                        >
-                          {genres.map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Sort By</label>
-                        <div className="relative">
-                          <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <select 
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as any)}
-                            className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
-                          >
-                            <option value="popularity">Popularity</option>
-                            <option value="price-asc">Price: Low to High</option>
-                            <option value="price-desc">Price: High to Low</option>
-                            <option value="date">Newest First</option>
-                          </select>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-in fade-in slide-in-from-top-4">
+                      <div className="md:col-span-2">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Genres</label>
+                          {genreFilter.length > 0 && (
+                            <button 
+                              onClick={() => setGenreFilter([])}
+                              className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline"
+                            >
+                              Clear All
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {genres.map(genre => (
+                            <button
+                              key={genre}
+                              onClick={() => toggleGenre(genre)}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                genreFilter.includes(genre)
+                                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                              }`}
+                            >
+                              {genre}
+                            </button>
+                          ))}
                         </div>
                       </div>
                       <div className="space-y-6">
-                        <div>
-                          <div className="flex justify-between items-center mb-3">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Min Price</label>
-                            <span className="text-sm font-black text-indigo-600">৳{priceRange[0]}</span>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Price Range</label>
+                        <div className="space-y-8">
+                          <div className="relative pt-1">
+                            <div className="flex justify-between items-center mb-4">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Min: ৳{priceRange[0]}</span>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Max: ৳{priceRange[1]}</span>
+                            </div>
+                            <div className="relative h-2 bg-gray-100 rounded-full">
+                              <div 
+                                className="absolute h-full bg-indigo-600 rounded-full"
+                                style={{ 
+                                  left: `${(priceRange[0] / 10000) * 100}%`, 
+                                  right: `${100 - (priceRange[1] / 10000) * 100}%` 
+                                }}
+                              />
+                              <input 
+                                type="range" 
+                                min="0" 
+                                max="10000" 
+                                step="100"
+                                value={priceRange[0]}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value);
+                                  setPriceRange([Math.min(val, priceRange[1]), priceRange[1]]);
+                                }}
+                                className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer pointer-events-auto z-10 accent-indigo-600"
+                              />
+                              <input 
+                                type="range" 
+                                min="0" 
+                                max="10000" 
+                                step="100"
+                                value={priceRange[1]}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value);
+                                  setPriceRange([priceRange[0], Math.max(val, priceRange[0])]);
+                                }}
+                                className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer pointer-events-auto z-10 accent-indigo-600"
+                              />
+                            </div>
                           </div>
-                          <input 
-                            type="range" 
-                            min="0" 
-                            max="10000" 
-                            step="100"
-                            value={priceRange[0]}
-                            onChange={(e) => setPriceRange([parseInt(e.target.value), priceRange[1]])}
-                            className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                          />
-                        </div>
-                        <div>
-                          <div className="flex justify-between items-center mb-3">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Max Price</label>
-                            <span className="text-sm font-black text-indigo-600">৳{priceRange[1]}</span>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Sort By</label>
+                            <div className="relative">
+                              <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <select 
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                              >
+                                <option value="popularity">Popularity</option>
+                                <option value="price-asc">Price: Low to High</option>
+                                <option value="price-desc">Price: High to Low</option>
+                                <option value="date">Newest First</option>
+                              </select>
+                            </div>
                           </div>
-                          <input 
-                            type="range" 
-                            min="0" 
-                            max="10000" 
-                            step="100"
-                            value={priceRange[1]}
-                            onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                            className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                          />
                         </div>
                       </div>
                     </div>
@@ -345,8 +482,8 @@ export default function App() {
 
                 {searchQuery && (
                   <div className="flex items-center gap-2 mb-8 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl w-fit">
-                    <Sparkles className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-widest">AI Enhanced Search Results</span>
+                    <Search className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-widest">Search Results</span>
                   </div>
                 )}
 
@@ -355,7 +492,6 @@ export default function App() {
                     <ProductCard 
                       key={product.id} 
                       product={product} 
-                      onAddToCart={addToCart} 
                       onToggleWishlist={toggleWishlist}
                       onClick={handleProductClick}
                       isInWishlist={user?.wishlist?.includes(product.id)}
@@ -390,7 +526,6 @@ export default function App() {
                         <ProductCard 
                           key={`recent-${product.id}`} 
                           product={product} 
-                          onAddToCart={addToCart} 
                           onToggleWishlist={toggleWishlist}
                           onClick={handleProductClick}
                           isInWishlist={user?.wishlist?.includes(product.id)}
@@ -406,7 +541,6 @@ export default function App() {
             user ? (
               <UserProfileSection 
                 user={user} 
-                onAddToCart={addToCart}
                 onToggleWishlist={toggleWishlist}
                 onBack={() => navigate('/')}
               />
@@ -431,6 +565,9 @@ export default function App() {
               addToCart={addToCart}
               toggleWishlist={toggleWishlist}
             />
+          } />
+          <Route path="/page/:pageId" element={
+            <Page siteContent={siteContent} />
           } />
         </Routes>
       </main>
@@ -477,31 +614,6 @@ export default function App() {
           onToggleWishlist={toggleWishlist}
           isInWishlist={user?.wishlist?.includes(selectedProduct.id) || false}
         />
-      )}
-
-      {activePolicy && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative">
-            <button 
-              onClick={() => setActivePolicy(null)}
-              className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-all"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-bold mb-6">
-              {activePolicy === 'contact' ? 'Contact Us' : 
-               activePolicy === 'refund' ? 'Refund Policy' :
-               activePolicy === 'privacy' ? 'Privacy Policy' :
-               activePolicy === 'terms' ? 'Terms of Service' : 'FAQ'}
-            </h2>
-            <div className="prose prose-indigo max-h-[60vh] overflow-y-auto pr-4 text-gray-600 leading-relaxed whitespace-pre-wrap">
-              {activePolicy === 'contact' ? siteContent.contactUs : 
-               activePolicy === 'refund' ? siteContent.refundPolicy :
-               activePolicy === 'privacy' ? siteContent.privacyPolicy :
-               activePolicy === 'terms' ? siteContent.termsOfService : siteContent.faq}
-            </div>
-          </div>
-        </div>
       )}
 
       <Footer />
