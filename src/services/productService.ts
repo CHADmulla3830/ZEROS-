@@ -10,8 +10,7 @@ import {
   deleteDoc,
   orderBy,
   arrayUnion,
-  updateDoc,
-  onSnapshot
+  updateDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Order, Review, PromoCode, UserProfile } from '../types';
@@ -441,8 +440,7 @@ export const ProductService = {
           refundPolicy: "No refunds for digital products once the key is revealed.",
           privacyPolicy: "We value your privacy...",
           termsOfService: "By using our site, you agree...",
-          faq: "Frequently Asked Questions...",
-          paymentInstructions: "Please send payment to our bKash/Nagad number..."
+          faq: "Frequently Asked Questions..."
         };
         try {
           await setDoc(docRef, defaultContent);
@@ -452,38 +450,15 @@ export const ProductService = {
         return defaultContent;
       }
     } catch (error) {
-      // Don't use handleFirestoreError here to avoid breaking the init flow for unauthenticated users
-      console.error('Failed to fetch site content:', error);
+      handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
       return {
         contactUs: "Contact us at support@zeros.com",
         refundPolicy: "No refunds for digital products once the key is revealed.",
         privacyPolicy: "We value your privacy...",
         termsOfService: "By using our site, you agree...",
-        faq: "Frequently Asked Questions...",
-        paymentInstructions: "Please send payment to our bKash/Nagad number..."
+        faq: "Frequently Asked Questions..."
       };
     }
-  },
-
-  subscribeToProducts(callback: (products: Product[]) => void) {
-    return onSnapshot(collection(db, 'products'), (snapshot) => {
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      callback(products);
-    }, (error) => {
-      console.error('Firestore Subscription Error (Products):', error);
-      // Don't throw here to avoid breaking the UI for unauthenticated users if there's a transient error
-      // handleFirestoreError(error, OperationType.LIST, 'products');
-    });
-  },
-
-  subscribeToSiteContent(callback: (content: any) => void) {
-    return onSnapshot(doc(db, 'settings', 'siteContent'), (docSnap) => {
-      if (docSnap.exists()) {
-        callback(docSnap.data());
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
-    });
   },
 
   async updateSiteContent(content: any): Promise<void> {

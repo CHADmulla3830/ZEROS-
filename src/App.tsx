@@ -63,15 +63,36 @@ export default function App() {
       // Set a safety timeout to ensure loading state is cleared
       const timeoutId = setTimeout(() => {
         setIsLoading(false);
-      }, 10000);
+      }, 10000); // 10 seconds timeout
 
       try {
         await testConnection();
         // Seed products in background, don't block
         ProductService.seedProducts().catch(err => console.error('Seeding failed:', err));
         
-        // Initial fetch for site content to ensure it's loaded
-        const content = await ProductService.getSiteContent();
+        const [allProducts, content] = await Promise.all([
+          ProductService.getAllProducts(),
+          ProductService.getSiteContent()
+        ]);
+        
+        if (allProducts) {
+          setProducts(allProducts);
+          setFilteredProducts(allProducts);
+          
+          // Load recently viewed from local storage
+          const stored = localStorage.getItem('recentlyViewed');
+          if (stored) {
+            try {
+              const ids = JSON.parse(stored) as string[];
+              const recent = ids
+                .map(id => allProducts.find(p => p.id === id))
+                .filter((p): p is Product => p !== undefined);
+              setRecentlyViewed(recent);
+            } catch (e) {
+              console.error('Failed to parse recently viewed:', e);
+            }
+          }
+        }
         if (content) {
           setSiteContent(content);
         }
@@ -85,49 +106,16 @@ export default function App() {
 
     init();
 
-    // Subscriptions
-    const unsubProducts = ProductService.subscribeToProducts((allProducts) => {
-      setProducts(allProducts);
-      setFilteredProducts(allProducts);
-      
-      // Load recently viewed from local storage after products are loaded
-      const stored = localStorage.getItem('recentlyViewed');
-      if (stored) {
-        try {
-          const ids = JSON.parse(stored) as string[];
-          const recent = ids
-            .map(id => allProducts.find(p => p.id === id))
-            .filter((p): p is Product => p !== undefined);
-          setRecentlyViewed(recent);
-        } catch (e) {
-          console.error('Failed to parse recently viewed:', e);
-        }
-      }
-    });
-
-    const unsubContent = ProductService.subscribeToSiteContent((content) => {
-      setSiteContent(content);
-    });
-
-    const unsubscribeAuth = AuthService.onAuthChange(async (firebaseUser) => {
+    const unsubscribe = AuthService.onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         const profile = await AuthService.getUserProfile(firebaseUser.uid);
         setUser(profile);
-        
-        // If admin, try seeding again in case it failed before
-        if (profile.role === 'admin' || profile.email === 'chadmulla7@gmail.com') {
-          ProductService.seedProducts().catch(err => console.error('Admin seeding failed:', err));
-        }
       } else {
         setUser(null);
       }
     });
 
-    return () => {
-      unsubProducts();
-      unsubContent();
-      unsubscribeAuth();
-    };
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
