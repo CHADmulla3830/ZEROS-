@@ -275,15 +275,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, paymentInstru
           </button>
           
           <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Details</h2>
-          
-          <div className="mb-6 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Manual Payment Verification</p>
-              <p className="text-[10px] text-amber-700 leading-tight">This is a manual payment process. ZEROS' will NEVER ask for your bKash/Nagad PIN or OTP. Only provide your Transaction ID after sending money.</p>
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Select Method</label>

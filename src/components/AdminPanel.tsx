@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Search, Tag, Percent } from 'lucide-react';
+import { Package, ShoppingBag, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, Loader2, Eye, X, Upload, Filter, ChevronDown, Sparkles, Search, Tag, Percent } from 'lucide-react';
 import { Product, Order, PromoCode, UserProfile, UserRole } from '../types';
 import { ProductService } from '../services/productService';
+import { AiService } from '../services/aiService';
 import { format } from 'date-fns';
 
 interface AdminPanelProps {
@@ -9,7 +10,7 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'site' | 'promo' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'site' | 'promo' | 'users'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -33,47 +34,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: 'product' | 'order' | 'promo' } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionModal, setShowRejectionModal] = useState(false);
-  const [showShippingModal, setShowShippingModal] = useState(false);
-  const [shippingInfo, setShippingInfo] = useState({ trackingNumber: '', estimatedDelivery: '' });
 
   // Search States
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [productPage, setProductPage] = useState(1);
   const PRODUCTS_PER_PAGE = 30;
 
+  // AI Fetch State
+  const [aiSearchQuery, setAiSearchQuery] = useState('');
+  const [isAiFetching, setIsAiFetching] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
-
-  const getAllowedTabs = (role: UserRole): ('dashboard' | 'products' | 'orders' | 'site' | 'promo' | 'users')[] => {
-    switch (role) {
-      case 'super_admin':
-      case 'admin':
-      case 'manager':
-        return ['dashboard', 'products', 'orders', 'promo', 'users', 'site'];
-      case 'content_manager':
-        return ['dashboard', 'products', 'site'];
-      case 'sales_manager':
-        return ['dashboard', 'orders', 'promo'];
-      case 'product_manager':
-        return ['dashboard', 'products'];
-      case 'editor':
-        return ['dashboard', 'site'];
-      default:
-        return [];
-    }
-  };
-
-  const allowedTabs = currentUser ? getAllowedTabs(currentUser.role) : [];
-
-  useEffect(() => {
-    if (currentUser) {
-      const allowed = getAllowedTabs(currentUser.role);
-      if (allowed.length > 0 && !allowed.includes(activeTab)) {
-        setActiveTab(allowed[0]);
-      }
-    }
-  }, [currentUser]);
 
   // Filters
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
@@ -141,13 +112,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     setIsLoading(false);
   };
 
-  const handleUpdateStatus = async (orderId: string, status: Order['status'], approved?: boolean, reason?: string, extraData?: Partial<Order>) => {
+  const handleAiFetch = async () => {
+    if (!aiSearchQuery.trim()) return;
+    setIsAiFetching(true);
+    try {
+      const details = await AiService.fetchGameDetails(aiSearchQuery);
+      if (details) {
+        setProductForm(prev => ({
+          ...prev,
+          name: details.name || prev.name,
+          description: details.description || prev.description,
+          price: details.price || prev.price,
+          genre: details.genre || prev.genre,
+          publisher: details.publisher || prev.publisher,
+          releaseDate: details.releaseDate || prev.releaseDate,
+          imageUrl: details.imageUrl || prev.imageUrl
+        }));
+      }
+    } finally {
+      setIsAiFetching(false);
+    }
+  };
+
+  const handleUpdateStatus = async (orderId: string, status: Order['status'], approved?: boolean, reason?: string) => {
     setIsActionLoading(orderId);
     try {
       if (status === 'cancellation_approved' || status === 'cancellation_rejected') {
         await ProductService.confirmOrderCancellation(orderId, approved!, reason);
       } else {
-        await ProductService.updateOrderStatus(orderId, status, extraData);
+        await ProductService.updateOrderStatus(orderId, status);
       }
       await fetchData();
       if (selectedOrder?.id === orderId) {
@@ -157,9 +150,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     } finally {
       setIsActionLoading(null);
       setShowRejectionModal(false);
-      setShowShippingModal(false);
       setRejectionReason('');
-      setShippingInfo({ trackingNumber: '', estimatedDelivery: '' });
     }
   };
 
@@ -273,12 +264,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const filteredOrders = orders.filter(o => {
     const statusMatch = orderStatusFilter === 'All' || o.status === orderStatusFilter;
     const paymentMatch = orderPaymentFilter === 'All' || o.paymentMethod === orderPaymentFilter;
-    const searchMatch = orderSearchQuery === '' || 
-      o.id.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-      o.userId.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-      o.transactionId.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-      o.paymentNumber.toLowerCase().includes(orderSearchQuery.toLowerCase());
-    return statusMatch && paymentMatch && searchMatch;
+    return statusMatch && paymentMatch;
   });
 
   const sortedProducts = [...products].sort((a, b) => {
@@ -301,188 +287,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const totalProductPages = Math.ceil(filteredAndSortedProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = filteredAndSortedProducts.slice((productPage - 1) * PRODUCTS_PER_PAGE, productPage * PRODUCTS_PER_PAGE);
 
-  // Dashboard Stats
-  const totalRevenue = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.totalAmount, 0);
-  const pendingOrders = orders.filter(o => o.status === 'pending').length;
-  const totalUsers = users.length;
-  const totalOrders = orders.length;
-
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {allowedTabs.includes('dashboard') && (
-            <button 
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Dashboard
-            </button>
-          )}
-          {allowedTabs.includes('products') && (
-            <button 
-              onClick={() => setActiveTab('products')}
-              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'products' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Products
-            </button>
-          )}
-          {allowedTabs.includes('orders') && (
-            <button 
-              onClick={() => setActiveTab('orders')}
-              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Orders
-            </button>
-          )}
-          {allowedTabs.includes('promo') && (
-            <button 
-              onClick={() => setActiveTab('promo')}
-              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'promo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Promo Codes
-            </button>
-          )}
-          {allowedTabs.includes('users') && (
-            <button 
-              onClick={() => setActiveTab('users')}
-              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Users
-            </button>
-          )}
-          {allowedTabs.includes('site') && (
-            <button 
-              onClick={() => setActiveTab('site')}
-              className={`px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'site' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
-            >
-              Site Content
-            </button>
-          )}
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => setActiveTab('products')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'products' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Products
+          </button>
+          <button 
+            onClick={() => setActiveTab('orders')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Orders
+          </button>
+          <button 
+            onClick={() => setActiveTab('promo')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'promo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Promo Codes
+          </button>
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Users
+          </button>
+          <button 
+            onClick={() => setActiveTab('site')}
+            className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'site' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-500'}`}
+          >
+            Site Content
+          </button>
         </div>
       </div>
 
-      {activeTab === 'dashboard' ? (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center">
-                  <ShoppingBag className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Orders</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{totalOrders}</h3>
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 font-medium">Lifetime orders placed</div>
-            </div>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
-                  <ShoppingBag className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Revenue</p>
-                  <h3 className="text-2xl font-bold text-gray-900">৳{totalRevenue}</h3>
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 font-medium">From completed orders</div>
-            </div>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center">
-                  <Clock className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pending Orders</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{pendingOrders}</h3>
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 font-medium">Awaiting processing</div>
-            </div>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
-                  <Package className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Users</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{totalUsers}</h3>
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 font-medium">Registered customers</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold mb-6">Recent Orders</h3>
-              <div className="space-y-4">
-                {orders.slice(0, 5).map(o => (
-                  <div key={o.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        o.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
-                      }`}>
-                        <ShoppingBag className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">Order #{o.id.slice(-6)}</p>
-                        <p className="text-xs text-gray-500">{format(new Date(o.createdAt), 'MMM dd, HH:mm')}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">৳{o.totalAmount}</p>
-                      <p className={`text-[10px] font-bold uppercase ${
-                        o.status === 'completed' ? 'text-emerald-600' : 'text-amber-600'
-                      }`}>{o.status}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button 
-                onClick={() => setActiveTab('orders')}
-                className="w-full mt-6 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-              >
-                View All Orders
-              </button>
-            </div>
-
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold mb-6">Top Selling Products</h3>
-              <div className="space-y-4">
-                {products.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 5).map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-                        <Package className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{p.name}</p>
-                        <p className="text-xs text-gray-500">{p.category}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">৳{p.price}</p>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase">Popularity: {p.popularity || 0}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button 
-                onClick={() => setActiveTab('products')}
-                className="w-full mt-6 py-3 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-              >
-                Manage Products
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : activeTab === 'products' ? (
+      {activeTab === 'products' ? (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
@@ -645,17 +490,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
               <Filter className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Filters:</span>
             </div>
-            <div className="flex flex-wrap items-center gap-4 flex-grow">
-              <div className="relative flex-grow max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search Order ID, User ID, Transaction ID..."
-                  value={orderSearchQuery}
-                  onChange={(e) => setOrderSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+            <div className="flex flex-wrap items-center gap-4">
               <select 
                 value={orderSortBy}
                 onChange={(e) => setOrderSortBy(e.target.value)}
@@ -738,9 +573,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           o.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 
                           o.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
-                          o.status === 'processing' ? 'bg-blue-100 text-blue-600' :
-                          o.status === 'shipped' ? 'bg-indigo-100 text-indigo-600' :
-                          o.status === 'delivered' ? 'bg-teal-100 text-teal-600' :
                           o.status === 'cancellation_requested' ? 'bg-purple-100 text-purple-600' :
                           o.status === 'cancellation_approved' ? 'bg-emerald-100 text-emerald-600' :
                           o.status === 'cancellation_rejected' ? 'bg-red-100 text-red-600' :
@@ -798,33 +630,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                                 title="Set to Pending"
                               >
                                 {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateStatus(o.id, 'processing')} 
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50"
-                                disabled={o.status === 'processing' || isActionLoading === o.id}
-                                title="Set to Processing"
-                              >
-                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Loader2 className="w-4 h-4" />}
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  setSelectedOrder(o);
-                                  setShowShippingModal(true);
-                                }} 
-                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-50"
-                                disabled={o.status === 'shipped' || isActionLoading === o.id}
-                                title="Set to Shipped"
-                              >
-                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateStatus(o.id, 'delivered')} 
-                                className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-all disabled:opacity-50"
-                                disabled={o.status === 'delivered' || isActionLoading === o.id}
-                                title="Set to Delivered"
-                              >
-                                {isActionLoading === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                               </button>
                               <button 
                                 onClick={() => handleUpdateStatus(o.id, 'completed')} 
@@ -998,8 +803,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                         >
                           <option value="user">User</option>
                           <option value="product_manager">Product Manager</option>
-                          <option value="sales_manager">Sales Manager</option>
-                          <option value="content_manager">Content Manager</option>
                           <option value="manager">Manager</option>
                           <option value="editor">Editor</option>
                           <option value="admin">Admin</option>
@@ -1064,9 +867,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 />
               </div>
               <div className="space-y-4 md:col-span-2">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ (Markdown Supported)</label>
-                </div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">FAQ (Markdown Supported)</label>
                 <textarea 
                   rows={6}
                   value={siteContent.faq}
@@ -1080,7 +881,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
               disabled={isActionLoading === 'save-site'}
               className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2"
             >
-              {isActionLoading === 'save-site' ? <Loader2 className="animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+              {isActionLoading === 'save-site' ? <Loader2 className="animate-spin" /> : <Sparkles className="w-5 h-5" />}
               Save Changes
             </button>
           </form>
@@ -1097,6 +898,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 <X className="w-6 h-6" />
               </button>
             </div>
+
+            {!editingProduct && (
+              <div className="mb-8 p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                <label className="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-3">AI Quick Fill</label>
+                <div className="flex gap-3">
+                  <div className="relative flex-grow">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
+                    <input 
+                      type="text"
+                      placeholder="Enter game name (e.g. Elden Ring)"
+                      value={aiSearchQuery}
+                      onChange={(e) => setAiSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-white border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleAiFetch}
+                    disabled={isAiFetching || !aiSearchQuery.trim()}
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isAiFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    <span>Fetch</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-indigo-400 mt-2 ml-1">AI will automatically find description, price, genre, and more.</p>
+              </div>
+            )}
 
             <form onSubmit={handleSaveProduct} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1441,56 +1269,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                 <span className="text-lg font-bold">Total Amount</span>
                 <span className="text-2xl font-black text-indigo-600">৳{selectedOrder.totalAmount}</span>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Shipping Info Modal */}
-      {showShippingModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Shipping Information</h2>
-              <button onClick={() => setShowShippingModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4 mb-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tracking Number</label>
-                <input 
-                  value={shippingInfo.trackingNumber}
-                  onChange={e => setShippingInfo({...shippingInfo, trackingNumber: e.target.value})}
-                  placeholder="e.g. ZEROS-123456"
-                  className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Estimated Delivery</label>
-                <input 
-                  type="date"
-                  value={shippingInfo.estimatedDelivery}
-                  onChange={e => setShippingInfo({...shippingInfo, estimatedDelivery: e.target.value})}
-                  className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => setShowShippingModal(false)}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => handleUpdateStatus(selectedOrder!.id, 'shipped', undefined, undefined, shippingInfo)}
-                disabled={isActionLoading === selectedOrder?.id}
-                className="flex-1 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isActionLoading === selectedOrder?.id && <Loader2 className="w-4 h-4 animate-spin" />}
-                Ship Order
-              </button>
             </div>
           </div>
         </div>

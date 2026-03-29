@@ -137,7 +137,7 @@ export const ProductService = {
 
   async getAdmins(): Promise<UserProfile[]> {
     try {
-      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor', 'content_manager', 'sales_manager']));
+      const q = query(collection(db, 'users'), where('role', 'in', ['super_admin', 'admin', 'manager', 'product_manager', 'editor']));
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => doc.data() as UserProfile);
     } catch (error) {
@@ -234,20 +234,14 @@ export const ProductService = {
     }
   },
 
-  async updateOrderStatus(orderId: string, status: Order['status'], extraData?: Partial<Order>): Promise<void> {
+  async updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
     try {
       const docRef = doc(db, 'orders', orderId);
       const now = new Date().toISOString();
-      const updateData: any = { 
+      await updateDoc(docRef, { 
         status,
         statusLog: arrayUnion({ status, timestamp: now })
-      };
-      
-      if (extraData) {
-        Object.assign(updateData, extraData);
-      }
-      
-      await updateDoc(docRef, updateData);
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
@@ -488,9 +482,7 @@ export const ProductService = {
         callback(docSnap.data());
       }
     }, (error) => {
-      console.error('Firestore Subscription Error (Site Content):', error);
-      // Don't throw here to avoid breaking the UI on startup if there's a transient error
-      // handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
+      handleFirestoreError(error, OperationType.GET, 'settings/siteContent');
     });
   },
 

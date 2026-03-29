@@ -87,9 +87,6 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
       case 'cancellation_requested': return 'text-amber-600 bg-amber-50';
       case 'cancellation_approved': return 'text-rose-600 bg-rose-50';
       case 'cancellation_rejected': return 'text-indigo-600 bg-indigo-50';
-      case 'processing': return 'text-blue-600 bg-blue-50';
-      case 'shipped': return 'text-indigo-600 bg-indigo-50';
-      case 'delivered': return 'text-teal-600 bg-teal-50';
       default: return 'text-blue-600 bg-blue-50';
     }
   };
@@ -101,9 +98,6 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
       case 'cancellation_requested': return <Clock className="w-4 h-4" />;
       case 'cancellation_approved': return <XCircle className="w-4 h-4" />;
       case 'cancellation_rejected': return <AlertTriangle className="w-4 h-4" />;
-      case 'processing': return <Loader2 className="w-4 h-4 animate-spin" />;
-      case 'shipped': return <ShoppingBag className="w-4 h-4" />;
-      case 'delivered': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -204,18 +198,6 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Date</span>
                               <span className="text-sm font-black text-gray-900">{format(new Date(order.createdAt), 'MMM dd, yyyy')}</span>
                             </div>
-                            {order.trackingNumber && (
-                              <div className="bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Tracking</span>
-                                <span className="text-sm font-black text-gray-900">{order.trackingNumber}</span>
-                              </div>
-                            )}
-                            {order.estimatedDelivery && (
-                              <div className="bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Est. Delivery</span>
-                                <span className="text-sm font-black text-gray-900">{format(new Date(order.estimatedDelivery), 'MMM dd, yyyy')}</span>
-                              </div>
-                            )}
                             <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest ${getStatusColor(order.status)}`}>
                               {getStatusIcon(order.status)}
                               {order.status.replace('_', ' ')}

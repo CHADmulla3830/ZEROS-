@@ -1,4 +1,4 @@
-export type UserRole = 'user' | 'admin' | 'product_manager' | 'manager' | 'editor' | 'super_admin' | 'content_manager' | 'sales_manager';
+export type UserRole = 'user' | 'admin' | 'product_manager' | 'manager' | 'editor' | 'super_admin';
 
 export interface UserProfile {
   uid: string;
@@ -52,7 +52,7 @@ export interface PromoCode {
 }
 
 export interface OrderStatusLog {
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'cancellation_requested' | 'cancellation_approved' | 'cancellation_rejected';
+  status: 'pending' | 'completed' | 'cancelled' | 'cancellation_requested' | 'cancellation_approved' | 'cancellation_rejected';
   timestamp: string;
 }
 
@@ -75,11 +75,9 @@ export interface Order {
   paymentMethod: 'bkash' | 'nagad';
   paymentNumber: string;
   transactionId: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'cancellation_requested' | 'cancellation_approved' | 'cancellation_rejected';
+  status: 'pending' | 'completed' | 'cancelled' | 'cancellation_requested' | 'cancellation_approved' | 'cancellation_rejected';
   statusLog: OrderStatusLog[];
   createdAt: string;
-  estimatedDelivery?: string;
-  trackingNumber?: string;
   cancellationReason?: string;
   cancellationRejectionReason?: string;
 }

@@ -76,21 +76,21 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() in ['super_admin', 'admin', 'manager', 'product_manager', 'editor', 'content_manager', 'sales_manager']) ||
-         (request.auth.token.email == "chadmulla7@gmail.com"));
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() in ['admin', 'manager', 'product_manager', 'editor']) ||
+         (request.auth.token.email == "chadmulla7@gmail.com" && request.auth.token.email_verified == true));
     }
 
     function isSuperAdmin() {
       return isAuthenticated() && 
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() == 'admin') ||
-         (request.auth.token.email == "chadmulla7@gmail.com"));
+         (request.auth.token.email == "chadmulla7@gmail.com" && request.auth.token.email_verified == true));
     }
 
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'email', 'role']) &&
              data.uid is string && data.uid.size() < 128 &&
              data.email is string && data.email.size() < 256 &&
-             data.role in ['user', 'super_admin', 'admin', 'manager', 'product_manager', 'editor', 'content_manager', 'sales_manager'] &&
+             data.role in ['user', 'admin', 'manager', 'product_manager', 'editor'] &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
              (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 1000)) &&
              (!('wishlist' in data) || data.wishlist is list) &&
@@ -201,10 +201,6 @@ service cloud.firestore {
     match /promoCodes/{promoId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() && isValidPromoCode(request.resource.data);
-    }
-
-    match /test/connection {
-      allow read: if true;
     }
 
     match /settings/siteContent {
