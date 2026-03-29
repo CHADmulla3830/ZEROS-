@@ -115,8 +115,7 @@ service cloud.firestore {
              (!('discountPrice' in data) || (data.discountPrice is number && data.discountPrice >= 0)) &&
              (!('warranty' in data) || (data.warranty is string)) &&
              (!('versions' in data) || (data.versions is list)) &&
-             (!('priceRange' in data) || (data.priceRange is map)) &&
-             (!('featured' in data) || (data.featured is bool));
+             (!('priceRange' in data) || (data.priceRange is map));
     }
 
     function isValidPromoCode(data) {

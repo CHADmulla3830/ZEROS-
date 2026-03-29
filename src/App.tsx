@@ -3,7 +3,6 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
-import { QuickViewModal } from './components/QuickViewModal';
 import { Cart } from './components/Cart';
 import { Checkout } from './components/Checkout';
 import { AdminPanel } from './components/AdminPanel';
@@ -47,7 +46,6 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [activePolicy, setActivePolicy] = useState<'contact' | 'refund' | 'privacy' | 'terms' | 'faq' | null>(null);
 
   useEffect(() => {
@@ -190,7 +188,6 @@ export default function App() {
   };
 
   const genres = ['All', ...new Set(products.map(p => p.genre))];
-  const featuredProducts = products.filter(p => p.featured);
 
   const isAdmin = user?.role === 'admin' || user?.email === 'chadmulla7@gmail.com';
 
@@ -242,30 +239,6 @@ export default function App() {
               <Hero />
 
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {featuredProducts.length > 0 && (
-                  <div className="mb-16">
-                    <div className="flex items-center gap-3 mb-8">
-                      <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
-                        <Sparkles className="w-6 h-6" />
-                      </div>
-                      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Featured Products</h2>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                      {featuredProducts.map(product => (
-                        <ProductCard 
-                          key={`featured-${product.id}`} 
-                          product={product} 
-                          onAddToCart={addToCart} 
-                          onToggleWishlist={toggleWishlist}
-                          onClick={handleProductClick}
-                          onQuickView={setQuickViewProduct}
-                          isInWishlist={user?.wishlist?.includes(product.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex flex-col gap-8 mb-12">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-3">
@@ -385,7 +358,6 @@ export default function App() {
                       onAddToCart={addToCart} 
                       onToggleWishlist={toggleWishlist}
                       onClick={handleProductClick}
-                      onQuickView={setQuickViewProduct}
                       isInWishlist={user?.wishlist?.includes(product.id)}
                     />
                   ))}
@@ -421,7 +393,6 @@ export default function App() {
                           onAddToCart={addToCart} 
                           onToggleWishlist={toggleWishlist}
                           onClick={handleProductClick}
-                          onQuickView={setQuickViewProduct}
                           isInWishlist={user?.wishlist?.includes(product.id)}
                         />
                       ))}
@@ -534,17 +505,6 @@ export default function App() {
       )}
 
       <Footer />
-      
-      {quickViewProduct && (
-        <QuickViewModal
-          product={quickViewProduct}
-          isOpen={!!quickViewProduct}
-          onClose={() => setQuickViewProduct(null)}
-          onAddToCart={addToCart}
-          onToggleWishlist={toggleWishlist}
-          isInWishlist={user?.wishlist?.includes(quickViewProduct.id)}
-        />
-      )}
     </div>
   );
 }

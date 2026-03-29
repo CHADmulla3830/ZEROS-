@@ -7,7 +7,6 @@ interface ProductCardProps {
   onAddToCart: (product: Product) => Promise<void> | void;
   onToggleWishlist?: (productId: string) => void;
   onClick?: (product: Product) => void;
-  onQuickView?: (product: Product) => void;
   isInWishlist?: boolean;
 }
 
@@ -16,7 +15,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
   onToggleWishlist,
   onClick,
-  onQuickView,
   isInWishlist = false
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -102,11 +100,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              if (onQuickView) {
-                onQuickView(product);
-              } else {
-                onClick?.(product);
-              }
+              onClick?.(product);
             }}
             className="p-2 rounded-xl bg-white/80 text-gray-400 hover:text-indigo-600 hover:bg-white backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
             title="Quick View"

@@ -36,6 +36,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-2xl font-black tracking-tighter uppercase group-hover:text-indigo-600 transition-colors">
               ZEROS'
             </span>
+            <div className="flex items-center gap-1.5 ml-1">
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="w-6 h-6 object-contain" alt="bKash" title="bKash Supported" />
+              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="w-6 h-6 object-contain" alt="Nagad" title="Nagad Supported" />
+            </div>
           </button>
 
           <div className="hidden md:flex items-center gap-8">

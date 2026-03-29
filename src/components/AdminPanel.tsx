@@ -1072,18 +1072,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                     className="w-full p-3 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
-                <div className="flex items-center gap-3 pt-6">
-                  <input 
-                    type="checkbox"
-                    id="featured-checkbox"
-                    checked={productForm.featured}
-                    onChange={e => setProductForm({...productForm, featured: e.target.checked})}
-                    className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <label htmlFor="featured-checkbox" className="text-sm font-bold text-gray-700 cursor-pointer">
-                    Featured Product
-                  </label>
-                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Description</label>

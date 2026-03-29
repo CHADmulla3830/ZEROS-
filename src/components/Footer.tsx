@@ -67,6 +67,15 @@ export const Footer: React.FC = () => {
                   <p className="text-sm font-bold text-gray-900">support@zeros.com</p>
                 </div>
               </li>
+              <li className="flex items-start gap-4">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone</p>
+                  <p className="text-sm font-bold text-gray-900">+880 1700-000000</p>
+                </div>
+              </li>
             </ul>
           </div>
         </div>
