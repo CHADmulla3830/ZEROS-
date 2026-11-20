@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, cartCount, onCartClick, on
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
               <button onClick={onProfileClick} className="avatar-button" title="Open profile">
-                <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} alt={user.displayName} />
+                {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : <span className="avatar-fallback" aria-label={user.displayName}>{user.displayName.slice(0, 1).toUpperCase()}</span>}
               </button>
               <button onClick={() => AuthService.signOut()} className="icon-button" title="Sign out"><LogOut className="h-4 w-4" /></button>
             </div>

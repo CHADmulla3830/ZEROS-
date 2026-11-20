@@ -30,10 +30,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .signin-button { display: inline-flex; align-items: center; gap: 8px; padding: 11px 15px; color: white; background: #111827; border-radius: 12px; font-size: .78rem; font-weight: 800; transition: transform .2s ease, background .2s ease; }
 .signin-button:hover { transform: translateY(-1px); background: #7659f4; }
 .avatar-button img { width: 34px; height: 34px; border-radius: 11px; object-fit: cover; }
+.avatar-fallback { display: grid; place-items: center; width: 34px; height: 34px; color: white; background: #7659f4; border-radius: 11px; font-size: .8rem; font-weight: 900; }
 .mobile-nav { border-top: 1px solid rgba(17,24,39,.08); padding: 8px 16px 14px; background: rgba(247,248,252,.96); }
 .mobile-nav-link { display: block; width: 100%; padding: 12px 2px; color: #687084; text-align: left; font-size: .82rem; font-weight: 800; border-bottom: 1px solid rgba(17,24,39,.06); }
 
 .hero-shell { isolation: isolate; background: #f7f8fc; }
+.particle-field { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: auto; opacity: .9; }
 .hero-grid { position: absolute; inset: 0; opacity: .45; background-image: linear-gradient(rgba(118,89,244,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(118,89,244,.06) 1px, transparent 1px); background-size: 42px 42px; mask-image: linear-gradient(to bottom, black 0%, transparent 75%); }
 .hero-glow { position: absolute; border-radius: 999px; filter: blur(2px); pointer-events: none; }
 .hero-glow-one { width: 460px; height: 460px; top: -170px; right: -100px; background: rgba(118,89,244,.12); }
@@ -74,6 +76,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .hero-card-bottom strong { color: white; font-size: .9rem; }
 .hero-price { color: #aef2d6; font-size: 1.15rem; font-weight: 900; }
 .hero-proof { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 16px; color: #687084; font-size: .71rem; font-weight: 700; text-align: center; }
+.hero-enter { animation: hero-enter .55s cubic-bezier(.2,.8,.2,1) both; }
+.hero-enter-delay { animation-delay: .1s; }
 
 .product-card { overflow: hidden; display: flex; flex-direction: column; height: 100%; cursor: pointer; background: white; border: 1px solid #e8eaf1; border-radius: 20px; box-shadow: 0 6px 18px rgba(17,24,39,.035); transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
 .product-card:hover { transform: translateY(-5px); border-color: #d7d0ff; box-shadow: 0 18px 34px rgba(45,35,102,.12); }
@@ -127,6 +131,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @keyframes controller-float { 0%, 100% { translate: 0 0; rotate: 14deg; } 50% { translate: 0 -9px; rotate: 18deg; } }
 @keyframes tag-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+@keyframes hero-enter { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.985); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }

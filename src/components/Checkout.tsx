@@ -295,7 +295,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, paymentInstru
                     paymentMethod === 'bkash' ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-gray-100 hover:border-pink-200'
                   }`}
                 >
-                  <img src="https://www.logo.wine/a/logo/BKash/BKash-Icon-Logo.wine.svg" className="w-6 h-6 object-contain" alt="bKash" />
+                  <span className="grid h-6 w-6 place-items-center rounded-md bg-pink-500 text-[8px] font-black text-white" aria-hidden="true">bK</span>
                   bKash
                 </button>
                 <button 
@@ -305,7 +305,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ items, userId, paymentInstru
                     paymentMethod === 'nagad' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-100 hover:border-orange-200'
                   }`}
                 >
-                  <img src="https://www.logo.wine/a/logo/Nagad/Nagad-Vertical-Logo.wine.svg" className="w-6 h-6 object-contain" alt="Nagad" />
+                  <span className="grid h-6 w-6 place-items-center rounded-md bg-orange-500 text-[8px] font-black text-white" aria-hidden="true">N</span>
                   Nagad
                 </button>
               </div>

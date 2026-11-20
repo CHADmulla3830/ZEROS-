@@ -1,15 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProductCard } from './components/ProductCard';
-import { Cart } from './components/Cart';
-import { Checkout } from './components/Checkout';
-import { AdminPanel } from './components/AdminPanel';
-import { UserProfileSection } from './components/UserProfileSection';
-import { ProductDetail } from './components/ProductDetail';
-import { ProductPage } from './pages/ProductPage';
-import { Page } from './pages/Page';
 import { Footer } from './components/Footer';
 import { Product, UserProfile } from './types';
 import { ProductService } from './services/productService';
@@ -18,6 +11,16 @@ import { db } from './lib/firebase';
 import { doc, getDocFromServer } from 'firebase/firestore';
 import { Search, Filter, Loader2, Gamepad2, SlidersHorizontal, ArrowUpDown, X, History, MessageCircle, Star } from 'lucide-react';
 import Fuse from 'fuse.js';
+
+const Cart = lazy(() => import('./components/Cart').then(module => ({ default: module.Cart })));
+const Checkout = lazy(() => import('./components/Checkout').then(module => ({ default: module.Checkout })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
+const UserProfileSection = lazy(() => import('./components/UserProfileSection').then(module => ({ default: module.UserProfileSection })));
+const ProductDetail = lazy(() => import('./components/ProductDetail').then(module => ({ default: module.ProductDetail })));
+const ProductPage = lazy(() => import('./pages/ProductPage').then(module => ({ default: module.ProductPage })));
+const Page = lazy(() => import('./pages/Page').then(module => ({ default: module.Page })));
+
+const RouteFallback = () => <div className="flex min-h-[40vh] items-center justify-center text-sm font-bold text-slate-500">Loading your ZEROS' space…</div>;
 
 export default function App() {
   const navigate = useNavigate();
@@ -271,6 +274,7 @@ export default function App() {
       />
 
       <main>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={
             <>
@@ -342,6 +346,8 @@ export default function App() {
                                     <img 
                                       src={product.imageUrl} 
                                       alt={product.name} 
+                                      loading="lazy"
+                                      decoding="async"
                                       className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                                       referrerPolicy="no-referrer"
                                     />
@@ -567,9 +573,11 @@ export default function App() {
             <Page siteContent={siteContent} />
           } />
         </Routes>
+        </Suspense>
       </main>
 
       {/* Modals & Overlays */}
+      <Suspense fallback={null}>
       {isCartOpen && (
         <Cart 
           items={cart} 
@@ -612,6 +620,7 @@ export default function App() {
           isInWishlist={user?.wishlist?.includes(selectedProduct.id) || false}
         />
       )}
+      </Suspense>
 
       <Footer />
     </div>

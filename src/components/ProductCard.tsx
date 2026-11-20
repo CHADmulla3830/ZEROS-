@@ -26,7 +26,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onToggleWishl
   return (
     <article onClick={() => onClick?.(product)} className="product-card group">
       <div className="product-media">
-        <img src={product.imageUrl} alt={product.name} referrerPolicy="no-referrer" />
+        <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
         <div className="product-media-shade" />
         {product.featured && <span className="product-badge">Featured</span>}
         <div className="product-actions">

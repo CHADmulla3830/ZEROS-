@@ -77,15 +77,15 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-6">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">We Accept</span>
               <div className="flex items-center gap-4">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/BKash_Logo.svg/512px-BKash_Logo.svg.png" className="h-6 object-contain grayscale hover:grayscale-0 transition-all cursor-help" alt="bKash" title="bKash" />
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Nagad_Logo.svg/512px-Nagad_Logo.svg.png" className="h-6 object-contain grayscale hover:grayscale-0 transition-all cursor-help" alt="Nagad" title="Nagad" />
+                <span className="rounded-md bg-pink-100 px-2 py-1 text-[10px] font-black text-pink-700">bKash</span>
+                <span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-black text-orange-700">Nagad</span>
               </div>
             </div>
             <div className="h-8 w-px bg-gray-100 hidden md:block" />
             <div className="flex items-center gap-3 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100">
               <Gamepad2 className="w-4 h-4 text-emerald-600" />
               <div className="text-left">
-                <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest leading-none mb-1">Security Verified</p>
+                <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest leading-none mb-1">Payment safety</p>
                 <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest leading-none">Manual Payment System</p>
               </div>
             </div>

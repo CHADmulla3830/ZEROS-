@@ -113,8 +113,8 @@ export const Cart: React.FC<CartProps> = ({ items, onClose, onRemove, onCheckout
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <div className="mt-4 flex items-center justify-center gap-4 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
-              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_1.png" className="h-5 object-contain" alt="bKash" />
-              <img src="https://storage.googleapis.com/ucl-git-repo-v2-pre-prod-711087579239.asia-southeast1.run.app/ais-pre-inpr5gnpkn4ibimvazeffr-711087579239.asia-southeast1.run.app/input_file_0.png" className="h-5 object-contain" alt="Nagad" />
+              <span className="rounded-md bg-pink-100 px-2 py-1 text-[10px] font-black text-pink-700">bKash</span>
+              <span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-black text-orange-700">Nagad</span>
             </div>
           </div>
         )}
