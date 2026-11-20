@@ -1,48 +1,76 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Gamepad2, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Gamepad2, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 
 export const Hero: React.FC = () => {
   return (
-    <div className="relative overflow-hidden bg-white py-16 sm:py-24">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-100 rounded-full blur-3xl opacity-50 -mr-48 -mt-24"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-violet-100 rounded-full blur-3xl opacity-50 -ml-48 -mb-24"></div>
-      </div>
+    <section className="hero-shell relative overflow-hidden">
+      <div className="hero-grid" aria-hidden="true" />
+      <div className="hero-glow hero-glow-one" aria-hidden="true" />
+      <div className="hero-glow hero-glow-two" aria-hidden="true" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-sm font-semibold mb-6">
-              <Zap className="w-4 h-4" />
-              Delivery within 2-48 hrs in Bangladesh
-            </span>
-            <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-gray-900 mb-8">
-              ZEROS' <br />
-              <span className="text-indigo-600">Gaming Marketplace</span>
-            </h1>
-            <p className="max-w-2xl mx-auto text-xl text-gray-500 mb-10">
-              The most trusted platform in Bangladesh for game top-ups, gift cards, and digital keys. 
-              Pay securely with bKash and Nagad.
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                <span className="text-sm font-medium text-gray-700">100% Secure Payments</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <Zap className="w-5 h-5 text-amber-500" />
-                <span className="text-sm font-medium text-gray-700">Instant Activation</span>
-              </div>
+      <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-16 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-24 lg:pt-24">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55 }}
+          className="relative z-10"
+        >
+          <div className="eyebrow-pill mb-7 w-fit">
+            <Sparkles className="h-3.5 w-3.5" />
+            Built for gamers in Bangladesh
+          </div>
+          <h1 className="hero-title max-w-3xl">
+            Game credit that lands <span>when you need it.</span>
+          </h1>
+          <p className="hero-copy mt-6 max-w-xl">
+            Top up Valorant, PUBG Mobile, Free Fire and more with a checkout that speaks your language. Pay with bKash or Nagad, then get back in the game.
+          </p>
+
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <a href="#catalog" className="primary-button">
+              Browse the shop <ArrowRight className="h-4 w-4" />
+            </a>
+            <a href="#how-it-works" className="secondary-button">
+              How delivery works
+            </a>
+          </div>
+
+          <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-slate-600">
+            <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-500" /> Secure local payments</span>
+            <span className="inline-flex items-center gap-2"><Zap className="h-4 w-4 text-amber-500" /> Fast digital delivery</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: .96, y: 18 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.65, delay: .1 }}
+          className="relative z-10"
+        >
+          <div className="hero-card">
+            <div className="hero-card-topline">
+              <span className="inline-flex items-center gap-2"><Gamepad2 className="h-4 w-4" /> ZEROS' drop desk</span>
+              <span className="hero-live"><span /> Live</span>
             </div>
-          </motion.div>
-        </div>
+            <div className="hero-art">
+              <div className="hero-art-orbit hero-art-orbit-one" />
+              <div className="hero-art-orbit hero-art-orbit-two" />
+              <div className="hero-art-cross">+</div>
+              <div className="hero-art-copy">
+                <span>Tonight's loadout</span>
+                <strong>Ready when<br />your squad is.</strong>
+              </div>
+              <div className="hero-controller"><Gamepad2 className="h-12 w-12" /></div>
+            </div>
+            <div className="hero-card-bottom">
+              <div><span>Popular now</span><strong>Valorant Points</strong></div>
+              <div className="hero-price">৳450</div>
+            </div>
+          </div>
+          <div className="hero-proof"><BadgeCheck className="h-4 w-4 text-emerald-500" /> Digital delivery within 2–48 hours across Bangladesh</div>
+        </motion.div>
       </div>
-    </div>
+    </section>
   );
 };

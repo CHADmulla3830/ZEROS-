@@ -256,7 +256,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-[#f7f8fc] font-sans text-gray-900 selection:bg-violet-100 selection:text-violet-900">
       <Navbar 
         user={user} 
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
@@ -276,14 +276,12 @@ export default function App() {
             <>
               <Hero />
 
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div id="catalog" className="catalog-shell mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
                 {featuredProducts.length > 0 && (
                   <div className="mb-16">
-                    <div className="flex items-center gap-3 mb-8">
-                      <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
-                        <Star className="w-6 h-6" />
-                      </div>
-                      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Featured Products</h2>
+                    <div className="mb-8 flex items-end justify-between gap-4">
+                      <div><p className="section-kicker mb-3">Popular with local players</p><h2 className="section-heading">Start with the good stuff.</h2></div>
+                      <span className="hidden text-xs font-bold text-slate-400 sm:block">Fresh picks · Updated weekly</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                       {featuredProducts.map(product => (
@@ -301,15 +299,7 @@ export default function App() {
 
                 <div className="flex flex-col gap-8 mb-12">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
-                        <Gamepad2 className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">PC Games</h2>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Showing {filteredProducts.length} results</p>
-                      </div>
-                    </div>
+                    <div><p className="section-kicker mb-3">The full shelf</p><h2 className="section-heading">Find your next move.</h2><p className="mt-3 text-sm text-slate-500">{filteredProducts.length} titles and top-ups ready to browse.</p></div>
 
                     <div className="flex items-center gap-4">
                       <div className="relative flex-grow md:w-96">
@@ -508,6 +498,13 @@ export default function App() {
                     <p className="text-gray-500">Try adjusting your search or filters.</p>
                   </div>
                 )}
+
+                <section id="how-it-works" className="mt-20 grid gap-4 rounded-[28px] bg-[#111827] p-6 text-white sm:grid-cols-3 sm:p-8">
+                  <div className="sm:col-span-3 mb-2"><p className="text-[10px] font-black uppercase tracking-[.16em] text-[#aef2d6]">A checkout that gets out of your way</p><h2 className="mt-2 text-2xl font-black tracking-[-.05em] sm:text-3xl">Pick it. Pay locally. Play sooner.</h2></div>
+                  {[['01', 'Choose your top-up', 'Open a product, pick the amount, and add it to your cart.'], ['02', 'Pay with bKash or Nagad', 'Use the payment instructions shown at checkout.'], ['03', 'Get the details', 'We send your digital key or top-up details after payment is confirmed.']].map(([number, title, body]) => (
+                    <div key={number} className="rounded-2xl border border-white/10 bg-white/[.05] p-5"><span className="text-xs font-black text-[#aef2d6]">{number}</span><h3 className="mt-5 text-base font-extrabold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{body}</p></div>
+                  ))}
+                </section>
 
                 {/* Recently Viewed Section */}
                 {recentlyViewed.length > 0 && (
