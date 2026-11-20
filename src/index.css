@@ -47,7 +47,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .primary-button:hover { transform: translateY(-2px); box-shadow: 0 16px 28px rgba(118,89,244,.28); }
 .secondary-button { color: #111827; background: rgba(255,255,255,.62); border: 1px solid rgba(17,24,39,.1); }
 .secondary-button:hover { transform: translateY(-2px); background: white; }
-.hero-card { padding: 13px; background: #121827; border-radius: 26px; box-shadow: 0 28px 70px rgba(17,24,39,.2); transform: rotate(1.5deg); }
+.hero-scene { position: relative; perspective: 1100px; transform-style: preserve-3d; }
+.hero-card { position: relative; z-index: 2; padding: 13px; background: #121827; border-radius: 26px; box-shadow: 0 28px 70px rgba(17,24,39,.2); transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) rotateZ(1.5deg) translateZ(0); transform-style: preserve-3d; transition: transform .18s ease-out, box-shadow .25s ease; will-change: transform; }
+.hero-scene:hover .hero-card { box-shadow: 0 38px 90px rgba(17,24,39,.26); }
+.hero-float-tag { position: absolute; z-index: 4; display: inline-flex; align-items: center; gap: 8px; padding: 9px 11px; color: #e9e6ff; background: rgba(17,24,39,.88); border: 1px solid rgba(255,255,255,.13); border-radius: 12px; box-shadow: 0 12px 24px rgba(17,24,39,.18); font-size: .65rem; font-weight: 900; letter-spacing: .03em; backdrop-filter: blur(12px); animation: tag-float 5s ease-in-out infinite; }
+.hero-float-tag span { display: grid; place-items: center; width: 18px; height: 18px; color: #111827; background: #aef2d6; border-radius: 6px; font-size: .55rem; }
+.hero-float-tag-one { top: 18%; left: -34px; transform: translateZ(70px) rotate(-5deg); }
+.hero-float-tag-two { right: -28px; bottom: 19%; animation-delay: -2.2s; transform: translateZ(90px) rotate(5deg); }
 .hero-card-topline, .hero-card-bottom { display: flex; align-items: center; justify-content: space-between; color: #c5cad9; font-size: .7rem; font-weight: 800; letter-spacing: .04em; }
 .hero-card-topline { padding: 8px 7px 13px; }
 .hero-live { display: inline-flex; align-items: center; gap: 5px; color: #7fe4ba; }
@@ -62,6 +68,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .hero-art-copy span { display: block; margin-bottom: 8px; color: #b7aeff; font-size: .69rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .hero-art-copy strong { display: block; font-size: clamp(2rem, 4vw, 3.35rem); font-weight: 900; letter-spacing: -.07em; line-height: .95; }
 .hero-controller { position: absolute; z-index: 2; top: 74px; right: 53px; display: grid; place-items: center; width: 124px; height: 124px; color: #121827; background: #aef2d6; border-radius: 38% 62% 55% 45%; transform: rotate(14deg); box-shadow: 15px 18px 0 rgba(18,24,39,.22); }
+.hero-controller { animation: controller-float 4.8s ease-in-out infinite; }
 .hero-card-bottom { padding: 15px 7px 4px; }
 .hero-card-bottom span, .product-price-label { display: block; margin-bottom: 4px; color: #8790a5; font-size: .63rem; letter-spacing: .08em; text-transform: uppercase; }
 .hero-card-bottom strong { color: white; font-size: .9rem; }
@@ -113,6 +120,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .hero-controller svg { width: 38px; height: 38px; }
   .hero-art-copy strong { font-size: 2.5rem; }
   .hero-card { transform: none; }
+  .hero-float-tag { display: none; }
   .hero-proof { align-items: flex-start; text-align: left; }
   .product-open, .product-cta { opacity: 1; transform: none; }
+}
+
+@keyframes controller-float { 0%, 100% { translate: 0 0; rotate: 14deg; } 50% { translate: 0 -9px; rotate: 18deg; } }
+@keyframes tag-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
