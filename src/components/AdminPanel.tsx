@@ -310,10 +310,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-8">
+    <div className="admin-panel-shell max-w-7xl mx-auto px-4 py-12" data-admin-panel>
+      <div className="admin-panel-header flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Admin Panel</h1>
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="admin-panel-tabs flex gap-4 overflow-x-auto pb-2">
           {allowedTabs.includes('dashboard') && (
             <button 
               onClick={() => setActiveTab('dashboard')}
@@ -1170,7 +1170,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Product Versions</label>
                   <div className="space-y-3">
                     {(productForm.versions || []).map((v, idx) => (
-                      <div key={idx} className="flex gap-3 items-center bg-gray-50 p-3 rounded-xl">
+                      <div key={idx} className="admin-version-row flex gap-3 items-center bg-gray-50 p-3 rounded-xl">
                         <input 
                           placeholder="Version Name (e.g. Standard)"
                           value={v.name}
