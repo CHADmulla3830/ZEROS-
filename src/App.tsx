@@ -283,7 +283,7 @@ export default function App() {
               <div id="catalog" className="catalog-shell mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
                 {featuredProducts.length > 0 && (
                   <div className="mb-16">
-                    <div className="mb-8 flex items-end justify-between gap-4">
+                    <div className="catalog-section-head mb-8 flex items-end justify-between gap-4">
                       <div><p className="section-kicker mb-3">Popular with local players</p><h2 className="section-heading">Start with the good stuff.</h2></div>
                       <span className="hidden text-xs font-bold text-slate-400 sm:block">Fresh picks · Updated weekly</span>
                     </div>
@@ -302,11 +302,11 @@ export default function App() {
                 )}
 
                 <div className="flex flex-col gap-8 mb-12">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="catalog-section-head flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div><p className="section-kicker mb-3">The full shelf</p><h2 className="section-heading">Find your next move.</h2><p className="mt-3 text-sm text-slate-500">{filteredProducts.length} titles and top-ups ready to browse.</p></div>
 
                     <div className="flex items-center gap-4">
-                      <div className="relative flex-grow md:w-96">
+                      <div className="catalog-search relative flex-grow md:w-96">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input 
                           type="text"

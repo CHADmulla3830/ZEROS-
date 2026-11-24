@@ -1,0 +1,1 @@
+{"routes":[{"path":"/","title":"ZEROS' Gaming Marketplace"},{"path":"/product/:id","title":"Product details"},{"path":"/profile","title":"Your profile"},{"path":"/admin","title":"Admin"},{"path":"/page/:pageId","title":"Information page"}]}

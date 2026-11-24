@@ -22,7 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, cartCount, onCartClick, on
       <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <button onClick={onHomeClick} className="brand-lockup" aria-label="Go to ZEROS' home">
           <span className="brand-mark"><Gamepad2 className="h-5 w-5" /></span>
-          <span>ZEROS<span className="brand-apostrophe">'</span></span>
+          <span className="brand-copy"><span>ZEROS<span className="brand-apostrophe">'</span></span><small>LOCAL GAME CREDIT</small></span>
         </button>
 
         <div className="hidden items-center gap-8 md:flex">
